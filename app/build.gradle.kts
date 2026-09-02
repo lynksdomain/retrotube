@@ -12,7 +12,7 @@ android {
         minSdk = 26
         targetSdk = 36
         versionCode = 1
-        versionName = "0.1"
+        versionName = "1.0.0"
     }
 
     // Populated from env vars in CI (see .github/workflows/release.yml) so release
