@@ -17,11 +17,19 @@ class LibraryRepository(private val context: Context) {
 
     private val prefs = context.getSharedPreferences("retrotube_library", Context.MODE_PRIVATE)
 
+    /**
+     * A previously-added folder's permission can vanish out from under us (user revokes
+     * it in system settings, an SD card is removed, etc.) -- SAF calls throw
+     * SecurityException in that case, so each folder is resolved defensively and just
+     * dropped from the list rather than crashing the whole library screen.
+     */
     fun getRootDocuments(): List<LibraryItem.FolderItem> =
         prefs.getStringSet(KEY_FOLDERS, emptySet()).orEmpty().mapNotNull { uriString ->
-            val treeUri = Uri.parse(uriString)
-            val doc = DocumentFile.fromTreeUri(context, treeUri) ?: return@mapNotNull null
-            LibraryItem.FolderItem(doc, doc.name ?: "Folder")
+            runCatching {
+                val treeUri = Uri.parse(uriString)
+                val doc = DocumentFile.fromTreeUri(context, treeUri) ?: return@mapNotNull null
+                LibraryItem.FolderItem(doc, doc.name ?: "Folder")
+            }.getOrNull()
         }.sortedBy { it.name.lowercase() }
 
     fun addFolder(treeUri: Uri) {
@@ -65,7 +73,8 @@ class LibraryRepository(private val context: Context) {
     fun listChildren(folder: DocumentFile): List<LibraryItem> {
         val folders = mutableListOf<LibraryItem.FolderItem>()
         val videos = mutableListOf<LibraryItem.VideoItem>()
-        for (child in folder.listFiles()) {
+        val children = runCatching { folder.listFiles() }.getOrDefault(emptyArray())
+        for (child in children) {
             when {
                 child.isDirectory -> folders.add(LibraryItem.FolderItem(child, child.name ?: "Folder"))
                 child.isFile && (child.type?.startsWith("video/") == true) ->

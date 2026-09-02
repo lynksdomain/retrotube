@@ -22,16 +22,18 @@ import java.util.concurrent.TimeoutException
  *
  * MediaMetadataRetriever is known to hang (not just fail) on certain
  * codec/container combinations instead of throwing -- so decoding runs on a
- * small worker pool while a throwaway supervisor thread enforces a hard
- * timeout via Future.get(), falling back to "no thumbnail" rather than
- * blocking that row forever. A stuck decode leaks its pool thread; the pool
- * has a few spare slots to absorb that rather than starving every request.
+ * small worker pool while a bounded "waiter" pool enforces a hard timeout via
+ * Future.get(), falling back to "no thumbnail" rather than blocking that row
+ * forever. A stuck decode leaks its pool thread; both pools are bounded
+ * (rather than spawning a fresh raw Thread per request) so fast-scrolling a
+ * large library can't pile up unbounded blocked threads.
  */
 object ThumbnailLoader {
 
     private const val TIMEOUT_MS = 3_000L
 
     private val decodeExecutor = Executors.newFixedThreadPool(4)
+    private val waiterExecutor = Executors.newFixedThreadPool(4)
     private val mainHandler = Handler(Looper.getMainLooper())
     private val cache = LruCache<String, Bitmap>(64)
 
@@ -48,7 +50,7 @@ object ThumbnailLoader {
         imageView.setImageBitmap(null)
         val future = decodeExecutor.submit(Callable { extractFrame(context, uri) })
 
-        Thread {
+        waiterExecutor.execute {
             val bitmap = try {
                 future.get(TIMEOUT_MS, TimeUnit.MILLISECONDS)
             } catch (e: TimeoutException) {
@@ -67,7 +69,7 @@ object ThumbnailLoader {
                     imageView.setImageBitmap(bitmap)
                 }
             }
-        }.start()
+        }
     }
 
     private fun extractFrame(context: Context, uri: Uri): Bitmap? {

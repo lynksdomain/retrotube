@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
-        android:maxSdkVersion="32" />
+    <!-- Intentionally no storage/media permissions: the library is entirely
+         Storage Access Framework (SAF) based. Folders are picked via the
+         system's own document tree picker, which grants scoped access without
+         needing a broad runtime permission. -->
 
     <application
         android:allowBackup="true"
