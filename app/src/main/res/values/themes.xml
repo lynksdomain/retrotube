@@ -1,0 +1,8 @@
+<resources>
+    <style name="Theme.RetroTube" parent="Theme.MaterialComponents.DayNight.NoActionBar" />
+
+    <style name="Theme.RetroTube.Player" parent="Theme.MaterialComponents.NoActionBar">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowBackground">@android:color/black</item>
+    </style>
+</resources>

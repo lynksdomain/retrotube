@@ -1,0 +1,127 @@
+package com.retrotube.app
+
+import android.os.Bundle
+import androidx.appcompat.app.AppCompatActivity
+import androidx.media3.ui.AspectRatioFrameLayout
+import com.retrotube.app.databinding.ActivityMainBinding
+import com.retrotube.app.settings.SettingsRepository
+import com.retrotube.app.settings.VideoEffectSettings
+import com.retrotube.app.shader.DownscaleTarget
+import com.retrotube.app.shader.ShaderPreset
+
+/**
+ * Edits either the app-wide default effect settings, or a per-file override
+ * for one specific video (see [MODE_GLOBAL] / [MODE_OVERRIDE]). Reuses the
+ * same preset/curvature/downscale/aspect controls either way.
+ */
+class EffectSettingsActivity : AppCompatActivity() {
+
+    companion object {
+        const val EXTRA_MODE = "extra_mode"
+        const val EXTRA_VIDEO_URI = "extra_video_uri"
+        const val MODE_GLOBAL = "global"
+        const val MODE_OVERRIDE = "override"
+    }
+
+    private lateinit var binding: ActivityMainBinding
+    private lateinit var settingsRepository: SettingsRepository
+    private var mode: String = MODE_GLOBAL
+    private var videoUri: String? = null
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        settingsRepository = SettingsRepository(this)
+        mode = intent.getStringExtra(EXTRA_MODE) ?: MODE_GLOBAL
+        videoUri = intent.getStringExtra(EXTRA_VIDEO_URI)
+
+        val initial = if (mode == MODE_OVERRIDE && videoUri != null) {
+            settingsRepository.effectiveSettings(videoUri!!)
+        } else {
+            settingsRepository.getGlobalDefault()
+        }
+        applySettingsToUi(initial)
+
+        if (mode == MODE_OVERRIDE) {
+            binding.saveButton.setText(R.string.save_override)
+            binding.clearOverrideButton.visibility = android.view.View.VISIBLE
+            binding.clearOverrideButton.setOnClickListener {
+                videoUri?.let { settingsRepository.clearOverride(it) }
+                finish()
+            }
+        }
+
+        binding.saveButton.setOnClickListener {
+            val settings = readSettingsFromUi()
+            if (mode == MODE_OVERRIDE && videoUri != null) {
+                settingsRepository.setOverride(videoUri!!, settings)
+            } else {
+                settingsRepository.setGlobalDefault(settings)
+            }
+            finish()
+        }
+    }
+
+    private fun applySettingsToUi(settings: VideoEffectSettings) {
+        val presetId = when (settings.preset) {
+            ShaderPreset.ZFAST_CRT -> binding.presetZfastCrt.id
+            ShaderPreset.PHOSPHOR_MONO -> binding.presetPhosphorMono.id
+            ShaderPreset.DECONVERGE -> binding.presetDeconverge.id
+            ShaderPreset.CRT_EASYMODE -> binding.presetCrtEasymode.id
+            ShaderPreset.VHS -> binding.presetVhs.id
+            ShaderPreset.CRT_GUEST_ADVANCED -> binding.presetCrtGuestAdvanced.id
+            ShaderPreset.NTSC -> binding.presetNtsc.id
+            ShaderPreset.NONE -> binding.presetNone.id
+        }
+        binding.presetGroup.check(presetId)
+
+        binding.curvatureSwitch.isChecked = settings.curvatureEnabled
+
+        val downscaleId = when (settings.downscale) {
+            DownscaleTarget.NATIVE -> binding.downscaleNative.id
+            DownscaleTarget.P240 -> binding.downscale240.id
+            DownscaleTarget.P480 -> binding.downscale480.id
+            DownscaleTarget.P720 -> binding.downscale720.id
+        }
+        binding.downscaleGroup.check(downscaleId)
+
+        val aspectId = when (settings.aspectMode) {
+            AspectRatioFrameLayout.RESIZE_MODE_FILL -> binding.aspectStretch.id
+            AspectRatioFrameLayout.RESIZE_MODE_ZOOM -> binding.aspectCrop.id
+            else -> binding.aspectFit.id
+        }
+        binding.aspectGroup.check(aspectId)
+    }
+
+    private fun readSettingsFromUi(): VideoEffectSettings {
+        val preset = when (binding.presetGroup.checkedRadioButtonId) {
+            binding.presetZfastCrt.id -> ShaderPreset.ZFAST_CRT
+            binding.presetPhosphorMono.id -> ShaderPreset.PHOSPHOR_MONO
+            binding.presetDeconverge.id -> ShaderPreset.DECONVERGE
+            binding.presetCrtEasymode.id -> ShaderPreset.CRT_EASYMODE
+            binding.presetVhs.id -> ShaderPreset.VHS
+            binding.presetCrtGuestAdvanced.id -> ShaderPreset.CRT_GUEST_ADVANCED
+            binding.presetNtsc.id -> ShaderPreset.NTSC
+            else -> ShaderPreset.NONE
+        }
+        val downscale = when (binding.downscaleGroup.checkedRadioButtonId) {
+            binding.downscale240.id -> DownscaleTarget.P240
+            binding.downscale480.id -> DownscaleTarget.P480
+            binding.downscale720.id -> DownscaleTarget.P720
+            else -> DownscaleTarget.NATIVE
+        }
+        val aspectMode = when (binding.aspectGroup.checkedRadioButtonId) {
+            binding.aspectStretch.id -> AspectRatioFrameLayout.RESIZE_MODE_FILL
+            binding.aspectCrop.id -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+            else -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+        }
+        return VideoEffectSettings(
+            preset = preset,
+            curvatureEnabled = binding.curvatureSwitch.isChecked,
+            downscale = downscale,
+            aspectMode = aspectMode,
+        )
+    }
+}

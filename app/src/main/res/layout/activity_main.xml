@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
+        android:padding="24dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/preset_label"
+            android:textStyle="bold"
+            android:textSize="18sp"
+            android:layout_marginBottom="16dp" />
+
+        <RadioGroup
+            android:id="@+id/presetGroup"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/tier_low"
+                android:textStyle="bold"
+                android:textColor="#8BC34A"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="4dp" />
+
+            <RadioButton
+                android:id="@+id/presetZfastCrt"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="zfast-crt"
+                android:checked="true" />
+
+            <RadioButton
+                android:id="@+id/presetPhosphorMono"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="phosphor-mono" />
+
+            <RadioButton
+                android:id="@+id/presetDeconverge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="deconverge" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/tier_medium"
+                android:textStyle="bold"
+                android:textColor="#FFC107"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="4dp" />
+
+            <RadioButton
+                android:id="@+id/presetCrtEasymode"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="crt-easymode" />
+
+            <RadioButton
+                android:id="@+id/presetVhs"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="vhs" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/tier_high"
+                android:textStyle="bold"
+                android:textColor="#FF5252"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="4dp" />
+
+            <RadioButton
+                android:id="@+id/presetCrtGuestAdvanced"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="crt-guest-advanced" />
+
+            <RadioButton
+                android:id="@+id/presetNtsc"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="ntsc" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/tier_off"
+                android:textStyle="bold"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="4dp" />
+
+            <RadioButton
+                android:id="@+id/presetNone"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="None" />
+
+        </RadioGroup>
+
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/curvatureSwitch"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="@string/curvature_label" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/downscale_label"
+            android:textStyle="bold"
+            android:layout_marginTop="20dp"
+            android:layout_marginBottom="4dp" />
+
+        <RadioGroup
+            android:id="@+id/downscaleGroup"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content">
+
+            <RadioButton
+                android:id="@+id/downscaleNative"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Native (no downscale)"
+                android:checked="true" />
+
+            <RadioButton
+                android:id="@+id/downscale240"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="240p (chunky)" />
+
+            <RadioButton
+                android:id="@+id/downscale480"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="480p (medium)" />
+
+            <RadioButton
+                android:id="@+id/downscale720"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="720p (subtle)" />
+
+        </RadioGroup>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/aspect_label"
+            android:textStyle="bold"
+            android:layout_marginTop="20dp"
+            android:layout_marginBottom="4dp" />
+
+        <RadioGroup
+            android:id="@+id/aspectGroup"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content">
+
+            <RadioButton
+                android:id="@+id/aspectFit"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Fit (black bars)"
+                android:checked="true" />
+
+            <RadioButton
+                android:id="@+id/aspectStretch"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Stretch (fill, distorts)" />
+
+            <RadioButton
+                android:id="@+id/aspectCrop"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Crop (fill, no bars)" />
+
+        </RadioGroup>
+
+        <Button
+            android:id="@+id/saveButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="@string/save_defaults" />
+
+        <Button
+            android:id="@+id/clearOverrideButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/clear_override"
+            android:visibility="gone" />
+
+    </LinearLayout>
+</ScrollView>

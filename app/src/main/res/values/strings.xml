@@ -1,0 +1,24 @@
+<resources>
+    <string name="app_name">RetroTube</string>
+    <string name="pick_video">Choose Video</string>
+    <string name="preset_label">CRT Preset</string>
+    <string name="tier_low">Low effort</string>
+    <string name="tier_medium">Medium effort</string>
+    <string name="tier_high">High effort</string>
+    <string name="tier_off">Off</string>
+    <string name="curvature_label">Curvature (screen warp)</string>
+    <string name="downscale_label">CRT Resolution</string>
+    <string name="aspect_label">Aspect Ratio</string>
+    <string name="add_folder">Add Folder</string>
+    <string name="global_settings">Default Settings</string>
+    <string name="library_empty">No videos yet. Tap \"Add Folder\" to point RetroTube at a folder of videos.</string>
+    <string name="save_defaults">Save Defaults</string>
+    <string name="save_override">Save for This Video</string>
+    <string name="clear_override">Clear Override</string>
+    <string name="back">Back</string>
+    <string name="remove_folder_title">Remove \"%1$s\"?</string>
+    <string name="remove_folder_message">This only removes it from RetroTube\'s library -- your files are untouched.</string>
+    <string name="remove">Remove</string>
+    <string name="compare_button">SHOW RAW</string>
+    <string name="compare_button_active">SHOWING RAW</string>
+</resources>
