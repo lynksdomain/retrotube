@@ -14,10 +14,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.documentfile.provider.DocumentFile
 import androidx.recyclerview.widget.GridLayoutManager
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 import com.retrotube.app.databinding.ActivityLibraryBinding
-import com.retrotube.app.library.ContinueWatchingAdapter
 import com.retrotube.app.library.LibraryItem
 import com.retrotube.app.library.LibraryListAdapter
 import com.retrotube.app.library.LibraryRepository
@@ -36,7 +33,6 @@ class LibraryActivity : AppCompatActivity() {
     private lateinit var settingsRepository: SettingsRepository
     private lateinit var progressRepository: PlaybackProgressRepository
     private lateinit var adapter: LibraryListAdapter
-    private lateinit var continueWatchingAdapter: ContinueWatchingAdapter
 
     /** Empty = showing the top-level list of added root folders. */
     private val folderStack = mutableListOf<DocumentFile>()
@@ -72,16 +68,13 @@ class LibraryActivity : AppCompatActivity() {
             onVideoClick = { video -> launchPlayer(video) },
             onVideoMenuClick = { video, anchor -> showVideoMenu(video, anchor) },
         )
-        binding.libraryList.layoutManager = GridLayoutManager(this, POSTER_GRID_SPAN_COUNT)
+        val gridLayoutManager = GridLayoutManager(this, POSTER_GRID_SPAN_COUNT)
+        gridLayoutManager.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
+            override fun getSpanSize(position: Int): Int =
+                adapter.spanSizeFor(position, POSTER_GRID_SPAN_COUNT)
+        }
+        binding.libraryList.layoutManager = gridLayoutManager
         binding.libraryList.adapter = adapter
-
-        continueWatchingAdapter = ContinueWatchingAdapter(
-            context = this,
-            onClick = { video -> launchPlayer(video) },
-        )
-        binding.continueWatchingList.layoutManager =
-            LinearLayoutManager(this, RecyclerView.HORIZONTAL, false)
-        binding.continueWatchingList.adapter = continueWatchingAdapter
 
         binding.addFolderButton.setOnClickListener { addFolder.launch(null) }
         binding.settingsButton.setOnClickListener {
@@ -173,23 +166,25 @@ class LibraryActivity : AppCompatActivity() {
         }
     }
 
-    /** Continue Watching is a fixed rail shown only at the library root -- once you've
-     *  navigated into a folder it drops away rather than following you around, since
-     *  it isn't scoped to what you're currently browsing. */
+    /** Continue Watching only shows at the library root -- once you've navigated into a
+     *  folder it drops away rather than following you around, since it isn't scoped to
+     *  what you're currently browsing. It travels as the grid's first row rather than a
+     *  pinned section, so it scrolls away with everything else. */
     private fun refreshList() {
         val items: List<LibraryItem> = if (folderStack.isEmpty()) {
             val continueWatching = libraryRepository.resolveVideoItems(
                 progressRepository.getAllProgress().map { it.first },
             )
             continueWatchingUris = continueWatching.map { it.document.uri.toString() }.toSet()
-            continueWatchingAdapter.submitList(continueWatching)
-            binding.continueWatchingSection.visibility =
-                if (continueWatching.isEmpty()) View.GONE else View.VISIBLE
+            val rail = if (continueWatching.isEmpty()) {
+                emptyList()
+            } else {
+                listOf(LibraryItem.ContinueWatchingRail(continueWatching))
+            }
 
-            filterAndSort(libraryRepository.getRootDocuments())
+            rail + filterAndSort(libraryRepository.getRootDocuments())
         } else {
             continueWatchingUris = emptySet()
-            binding.continueWatchingSection.visibility = View.GONE
             filterAndSort(libraryRepository.listChildren(folderStack.last()))
         }
         adapter.submitList(items, isRootLevel = folderStack.isEmpty())
@@ -208,6 +203,7 @@ class LibraryActivity : AppCompatActivity() {
                 val name = when (item) {
                     is LibraryItem.FolderItem -> item.name
                     is LibraryItem.VideoItem -> item.name
+                    is LibraryItem.ContinueWatchingRail -> ""
                 }
                 name.contains(query, ignoreCase = true)
             }
@@ -218,6 +214,7 @@ class LibraryActivity : AppCompatActivity() {
             when (item) {
                 is LibraryItem.FolderItem -> item.document.lastModified()
                 is LibraryItem.VideoItem -> item.document.lastModified()
+                is LibraryItem.ContinueWatchingRail -> Long.MAX_VALUE
             }
         }
     }

@@ -6,7 +6,9 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.OvershootInterpolator
+import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.retrotube.app.databinding.ItemContinueWatchingRailBinding
 import com.retrotube.app.databinding.ItemFolderBinding
 import com.retrotube.app.databinding.ItemVideoBinding
 import com.retrotube.app.progress.PlaybackProgressRepository
@@ -14,7 +16,9 @@ import com.retrotube.app.settings.SettingsRepository
 
 /** Folders and videos share one poster grid -- a subfolder is a card that opens
  *  onto its own grid, same as any other browsable shelf, rather than a separate
- *  file-tree list sitting above the videos. */
+ *  file-tree list sitting above the videos. The Continue Watching rail rides
+ *  along as a full-width row inside that same grid, so it scrolls away with
+ *  everything else instead of staying pinned above it. */
 class LibraryListAdapter(
     private val context: Context,
     private val onFolderClick: (LibraryItem.FolderItem) -> Unit,
@@ -35,15 +39,24 @@ class LibraryListAdapter(
         notifyDataSetChanged()
     }
 
+    /** Folders and videos are single grid cells; the Continue Watching rail spans
+     *  the whole row, same as any other full-width shelf header. */
+    fun spanSizeFor(position: Int, spanCount: Int): Int =
+        if (items[position] is LibraryItem.ContinueWatchingRail) spanCount else 1
+
     override fun getItemViewType(position: Int): Int = when (items[position]) {
         is LibraryItem.FolderItem -> VIEW_TYPE_FOLDER
         is LibraryItem.VideoItem -> VIEW_TYPE_VIDEO
+        is LibraryItem.ContinueWatchingRail -> VIEW_TYPE_CONTINUE_WATCHING_RAIL
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         val inflater = LayoutInflater.from(parent.context)
         return when (viewType) {
             VIEW_TYPE_FOLDER -> FolderViewHolder(ItemFolderBinding.inflate(inflater, parent, false))
+            VIEW_TYPE_CONTINUE_WATCHING_RAIL -> RailViewHolder(
+                ItemContinueWatchingRailBinding.inflate(inflater, parent, false),
+            )
             else -> VideoViewHolder(ItemVideoBinding.inflate(inflater, parent, false))
         }
     }
@@ -92,6 +105,10 @@ class LibraryListAdapter(
                     holder.binding.progressBarFill.visibility = View.GONE
                 }
             }
+            is LibraryItem.ContinueWatchingRail -> {
+                holder as RailViewHolder
+                holder.railAdapter.submitList(item.videos)
+            }
         }
     }
 
@@ -123,8 +140,21 @@ class LibraryListAdapter(
     class FolderViewHolder(val binding: ItemFolderBinding) : RecyclerView.ViewHolder(binding.root)
     class VideoViewHolder(val binding: ItemVideoBinding) : RecyclerView.ViewHolder(binding.root)
 
+    inner class RailViewHolder(
+        private val binding: ItemContinueWatchingRailBinding,
+    ) : RecyclerView.ViewHolder(binding.root) {
+        val railAdapter = ContinueWatchingAdapter(context, onClick = onVideoClick)
+
+        init {
+            binding.continueWatchingList.layoutManager =
+                LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
+            binding.continueWatchingList.adapter = railAdapter
+        }
+    }
+
     companion object {
         private const val VIEW_TYPE_FOLDER = 0
         private const val VIEW_TYPE_VIDEO = 1
+        private const val VIEW_TYPE_CONTINUE_WATCHING_RAIL = 2
     }
 }

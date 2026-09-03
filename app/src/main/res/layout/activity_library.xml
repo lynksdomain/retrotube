@@ -110,36 +110,6 @@
 
         </LinearLayout>
 
-        <LinearLayout
-            android:id="@+id/continueWatchingSection"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:paddingTop="4dp"
-            android:paddingBottom="12dp"
-            android:visibility="gone">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
-                android:layout_marginBottom="8dp"
-                android:text="@string/continue_watching"
-                android:textColor="@color/retro_teal"
-                android:textStyle="bold"
-                android:textSize="14sp" />
-
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/continueWatchingList"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:clipToPadding="false"
-                android:paddingStart="16dp"
-                android:paddingEnd="6dp" />
-
-        </LinearLayout>
-
         <TextView
             android:id="@+id/emptyLibraryText"
             android:layout_width="match_parent"

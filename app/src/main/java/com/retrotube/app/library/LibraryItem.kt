@@ -23,4 +23,9 @@ sealed class LibraryItem {
                 .replace(Regex("\\s+"), " ")
                 .trim()
     }
+
+    /** A single full-width row embedding the horizontal Continue Watching rail --
+     *  travels as a normal grid item so it scrolls away with everything else,
+     *  rather than sitting pinned above the grid. */
+    data class ContinueWatchingRail(val videos: List<VideoItem>) : LibraryItem()
 }
