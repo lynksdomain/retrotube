@@ -11,8 +11,11 @@ import androidx.appcompat.app.AlertDialog
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.documentfile.provider.DocumentFile
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.retrotube.app.databinding.ActivityLibraryBinding
+import com.retrotube.app.library.ContinueWatchingAdapter
 import com.retrotube.app.library.LibraryItem
 import com.retrotube.app.library.LibraryListAdapter
 import com.retrotube.app.library.LibraryRepository
@@ -23,7 +26,7 @@ class LibraryActivity : AppCompatActivity() {
 
     companion object {
         private const val KEY_HAS_SEEN_WELCOME = "has_seen_welcome"
-        private const val CONTINUE_WATCHING_CAP = 5
+        private const val POSTER_GRID_SPAN_COUNT = 3
     }
 
     private lateinit var binding: ActivityLibraryBinding
@@ -31,14 +34,14 @@ class LibraryActivity : AppCompatActivity() {
     private lateinit var settingsRepository: SettingsRepository
     private lateinit var progressRepository: PlaybackProgressRepository
     private lateinit var adapter: LibraryListAdapter
+    private lateinit var continueWatchingAdapter: ContinueWatchingAdapter
 
     /** Empty = showing the top-level list of added root folders. */
     private val folderStack = mutableListOf<DocumentFile>()
 
-    /** URIs currently shown in the Continue Watching row, so the "⋮" menu knows whether
+    /** URIs currently shown in the Continue Watching rail, so the "⋮" menu knows whether
      *  to offer "Remove from Continue Watching" or just go straight to settings. */
     private var continueWatchingUris: Set<String> = emptySet()
-    private var showAllContinueWatching = false
 
     private enum class SortMode { NAME, DATE }
     private var searchQuery: String = ""
@@ -66,10 +69,17 @@ class LibraryActivity : AppCompatActivity() {
             onFolderRemoveClick = { folder -> confirmRemoveFolder(folder) },
             onVideoClick = { video -> launchPlayer(video) },
             onVideoMenuClick = { video, anchor -> showVideoMenu(video, anchor) },
-            onSeeAllClick = { showAllContinueWatching = true; refreshList() },
         )
-        binding.libraryList.layoutManager = LinearLayoutManager(this)
+        binding.libraryList.layoutManager = GridLayoutManager(this, POSTER_GRID_SPAN_COUNT)
         binding.libraryList.adapter = adapter
+
+        continueWatchingAdapter = ContinueWatchingAdapter(
+            context = this,
+            onClick = { video -> launchPlayer(video) },
+        )
+        binding.continueWatchingList.layoutManager =
+            LinearLayoutManager(this, RecyclerView.HORIZONTAL, false)
+        binding.continueWatchingList.adapter = continueWatchingAdapter
 
         binding.addFolderButton.setOnClickListener { addFolder.launch(null) }
         binding.settingsButton.setOnClickListener {
@@ -140,38 +150,32 @@ class LibraryActivity : AppCompatActivity() {
         }
     }
 
+    /** Continue Watching is a fixed rail shown only at the library root -- once you've
+     *  navigated into a folder it drops away rather than following you around, since
+     *  it isn't scoped to what you're currently browsing. */
     private fun refreshList() {
         val items: List<LibraryItem> = if (folderStack.isEmpty()) {
             val continueWatching = libraryRepository.resolveVideoItems(
                 progressRepository.getAllProgress().map { it.first },
             )
             continueWatchingUris = continueWatching.map { it.document.uri.toString() }.toSet()
-            val continueWatchingSection = if (continueWatching.isNotEmpty()) {
-                val visible = if (showAllContinueWatching) continueWatching else continueWatching.take(CONTINUE_WATCHING_CAP)
-                val remaining = continueWatching.size - visible.size
-                buildList {
-                    add(LibraryItem.SectionHeader(getString(R.string.continue_watching)))
-                    addAll(visible)
-                    if (remaining > 0) add(LibraryItem.SeeAllRow(remaining))
-                }
-            } else {
-                emptyList()
-            }
-            continueWatchingSection + filterAndSort(libraryRepository.getRootDocuments())
+            continueWatchingAdapter.submitList(continueWatching)
+            binding.continueWatchingSection.visibility =
+                if (continueWatching.isEmpty()) View.GONE else View.VISIBLE
+
+            filterAndSort(libraryRepository.getRootDocuments())
         } else {
             continueWatchingUris = emptySet()
+            binding.continueWatchingSection.visibility = View.GONE
             filterAndSort(libraryRepository.listChildren(folderStack.last()))
         }
         adapter.submitList(items, isRootLevel = folderStack.isEmpty())
-        binding.emptyLibraryText.visibility = if (items.isEmpty()) android.view.View.VISIBLE else android.view.View.GONE
+        binding.emptyLibraryText.visibility = if (items.isEmpty()) View.VISIBLE else View.GONE
 
-        binding.breadcrumbRow.visibility = if (folderStack.isEmpty()) android.view.View.GONE else android.view.View.VISIBLE
+        binding.breadcrumbRow.visibility = if (folderStack.isEmpty()) View.GONE else View.VISIBLE
         binding.breadcrumbText.text = folderStack.joinToString(" / ") { it.name ?: "?" }
     }
 
-    /** Applies the search box + sort toggle to a folder/video listing. Continue Watching
-     *  is deliberately excluded -- it's already curated by recency, filtering/resorting it
-     *  the same way wouldn't make sense. */
     private fun filterAndSort(items: List<LibraryItem>): List<LibraryItem> {
         val query = searchQuery.trim()
         val filtered = if (query.isEmpty()) {
@@ -181,7 +185,6 @@ class LibraryActivity : AppCompatActivity() {
                 val name = when (item) {
                     is LibraryItem.FolderItem -> item.name
                     is LibraryItem.VideoItem -> item.name
-                    else -> ""
                 }
                 name.contains(query, ignoreCase = true)
             }
@@ -192,7 +195,6 @@ class LibraryActivity : AppCompatActivity() {
             when (item) {
                 is LibraryItem.FolderItem -> item.document.lastModified()
                 is LibraryItem.VideoItem -> item.document.lastModified()
-                else -> 0L
             }
         }
     }

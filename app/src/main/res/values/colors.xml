@@ -3,6 +3,7 @@
     <!-- VHS teal/magenta identity, replaces stock Material purple. -->
     <color name="retro_background">#0B0B14</color>
     <color name="retro_surface">#1A1A26</color>
+    <color name="retro_surface_alt">#242432</color>
     <color name="retro_divider">#2A2A38</color>
 
     <color name="retro_teal">#2FE6D0</color>

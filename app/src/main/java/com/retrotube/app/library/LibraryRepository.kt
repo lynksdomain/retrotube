@@ -80,12 +80,14 @@ class LibraryRepository(private val context: Context) {
             runCatching {
                 val doc = DocumentFile.fromSingleUri(context, Uri.parse(uriString)) ?: return@mapNotNull null
                 if (!doc.exists()) return@mapNotNull null
-                LibraryItem.VideoItem(doc, doc.name ?: "Untitled")
+                val locationHint = runCatching { doc.parentFile?.name }.getOrNull().orEmpty()
+                LibraryItem.VideoItem(doc, doc.name ?: "Untitled", locationHint)
             }.getOrNull()
         }
 
     /** Immediate children of [folder] only -- subfolders first, then videos, both alphabetical. */
     fun listChildren(folder: DocumentFile): List<LibraryItem> {
+        val folderName = folder.name ?: "Folder"
         val folders = mutableListOf<LibraryItem.FolderItem>()
         val videos = mutableListOf<LibraryItem.VideoItem>()
         val children = runCatching { folder.listFiles() }.getOrDefault(emptyArray())
@@ -93,7 +95,7 @@ class LibraryRepository(private val context: Context) {
             when {
                 child.isDirectory -> folders.add(LibraryItem.FolderItem(child, child.name ?: "Folder"))
                 child.isFile && (child.type?.startsWith("video/") == true) ->
-                    videos.add(LibraryItem.VideoItem(child, child.name ?: "Untitled"))
+                    videos.add(LibraryItem.VideoItem(child, child.name ?: "Untitled", folderName))
             }
         }
         return folders.sortedBy { it.name.lowercase() } + videos.sortedBy { it.name.lowercase() }

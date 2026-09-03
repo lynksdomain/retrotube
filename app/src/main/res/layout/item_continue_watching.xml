@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/continueCard"
+    android:layout_width="168dp"
+    android:layout_height="wrap_content"
+    android:layout_marginEnd="10dp"
+    android:clickable="true"
+    android:focusable="true"
+    app:cardBackgroundColor="@color/retro_surface"
+    app:cardCornerRadius="8dp"
+    app:cardElevation="2dp"
+    app:rippleColor="@color/retro_teal">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <ImageView
+            android:id="@+id/continueThumbnail"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:scaleType="centerCrop"
+            android:background="@color/thumbnail_placeholder"
+            app:layout_constraintDimensionRatio="16:9"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <View
+            android:id="@+id/continueProgressTrack"
+            android:layout_width="0dp"
+            android:layout_height="3dp"
+            android:background="@color/progress_track"
+            app:layout_constraintBottom_toBottomOf="@id/continueThumbnail"
+            app:layout_constraintStart_toStartOf="@id/continueThumbnail"
+            app:layout_constraintEnd_toEndOf="@id/continueThumbnail" />
+
+        <View
+            android:id="@+id/continueProgressFill"
+            android:layout_width="0dp"
+            android:layout_height="3dp"
+            android:background="@drawable/progress_bar_fill"
+            app:layout_constraintBottom_toBottomOf="@id/continueThumbnail"
+            app:layout_constraintStart_toStartOf="@id/continueThumbnail"
+            app:layout_constraintEnd_toEndOf="@id/continueThumbnail" />
+
+        <TextView
+            android:id="@+id/continueName"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_margin="8dp"
+            android:textColor="@color/retro_text_primary"
+            android:textSize="11.5sp"
+            android:maxLines="1"
+            android:ellipsize="end"
+            app:layout_constraintTop_toBottomOf="@id/continueThumbnail"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</com.google.android.material.card.MaterialCardView>
