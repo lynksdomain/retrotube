@@ -99,7 +99,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:layout_marginTop="12dp"
-                android:layout_marginBottom="28dp">
+                android:layout_marginBottom="20dp">
 
                 <ImageView
                     android:id="@+id/candidate1"
@@ -137,6 +137,24 @@
                     android:background="@color/thumbnail_placeholder" />
 
             </LinearLayout>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/tags_input_label"
+                android:textStyle="bold"
+                android:layout_marginBottom="6dp" />
+
+            <EditText
+                android:id="@+id/tagsInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="text"
+                android:maxLines="1"
+                android:background="@color/retro_surface"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="10dp"
+                android:layout_marginBottom="28dp" />
 
             <Button
                 android:id="@+id/saveButton"

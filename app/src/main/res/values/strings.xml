@@ -33,6 +33,14 @@
     <string name="pick_frame_label">Pick a frame</string>
     <string name="save_metadata">Save</string>
     <string name="reset_to_auto">Reset to Auto</string>
+    <string name="tags_input_label">Tags (comma separated)</string>
+    <string name="add_to_collection">Add to collection</string>
+    <string name="new_collection">New collection…</string>
+    <string name="new_collection_prompt_title">New collection name</string>
+    <string name="create">Create</string>
+    <string name="collection_video_count">%1$d videos</string>
+    <string name="remove_collection_title">Delete \"%1$s\"?</string>
+    <string name="remove_collection_message">This only removes the collection -- your files are untouched.</string>
 
     <!-- Row titles + descriptions for the effect settings screen. -->
     <string name="title_zfast_crt">zfast-crt</string>

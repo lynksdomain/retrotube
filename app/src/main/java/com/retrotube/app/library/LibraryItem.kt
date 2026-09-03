@@ -28,4 +28,9 @@ sealed class LibraryItem {
      *  travels as a normal grid item so it scrolls away with everything else,
      *  rather than sitting pinned above the grid. */
     data class ContinueWatchingRail(val videos: List<VideoItem>) : LibraryItem()
+
+    /** A user-curated shelf that can span folders -- a card like [FolderItem], but
+     *  opening it shows a hand-picked, manually-orderable set of videos instead of
+     *  whatever's really on disk in one place. */
+    data class CollectionItem(val id: String, val name: String, val videoCount: Int) : LibraryItem()
 }

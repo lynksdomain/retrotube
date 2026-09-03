@@ -7,6 +7,7 @@ import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
 import android.view.inputmethod.InputMethodManager
+import android.widget.EditText
 import android.widget.PopupMenu
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AlertDialog
@@ -14,6 +15,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.documentfile.provider.DocumentFile
 import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.ItemTouchHelper
+import androidx.recyclerview.widget.RecyclerView
+import com.retrotube.app.collections.CollectionRepository
 import com.retrotube.app.databinding.ActivityLibraryBinding
 import com.retrotube.app.library.LibraryItem
 import com.retrotube.app.library.LibraryListAdapter
@@ -32,10 +36,16 @@ class LibraryActivity : AppCompatActivity() {
     private lateinit var libraryRepository: LibraryRepository
     private lateinit var settingsRepository: SettingsRepository
     private lateinit var progressRepository: PlaybackProgressRepository
+    private lateinit var collectionRepository: CollectionRepository
     private lateinit var adapter: LibraryListAdapter
 
     /** Empty = showing the top-level list of added root folders. */
     private val folderStack = mutableListOf<DocumentFile>()
+
+    /** Non-null = showing a collection's videos instead of a real folder's contents.
+     *  Mutually exclusive with [folderStack] -- collections only open from the root. */
+    private var openCollectionId: String? = null
+    private var openCollectionName: String = ""
 
     /** URIs currently shown in the Continue Watching rail, so the "⋮" menu knows whether
      *  to offer "Remove from Continue Watching" or just go straight to settings. */
@@ -60,6 +70,7 @@ class LibraryActivity : AppCompatActivity() {
         libraryRepository = LibraryRepository(this)
         settingsRepository = SettingsRepository(this)
         progressRepository = PlaybackProgressRepository(this)
+        collectionRepository = CollectionRepository(this)
 
         adapter = LibraryListAdapter(
             context = this,
@@ -67,6 +78,12 @@ class LibraryActivity : AppCompatActivity() {
             onFolderRemoveClick = { folder -> confirmRemoveFolder(folder) },
             onVideoClick = { video -> launchPlayer(video) },
             onVideoMenuClick = { video, anchor -> showVideoMenu(video, anchor) },
+            onCollectionClick = { collection ->
+                openCollectionId = collection.id
+                openCollectionName = collection.name
+                refreshList()
+            },
+            onCollectionRemoveClick = { collection -> confirmRemoveCollection(collection) },
         )
         val gridLayoutManager = GridLayoutManager(this, POSTER_GRID_SPAN_COUNT)
         gridLayoutManager.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
@@ -75,6 +92,7 @@ class LibraryActivity : AppCompatActivity() {
         }
         binding.libraryList.layoutManager = gridLayoutManager
         binding.libraryList.adapter = adapter
+        reorderTouchHelper.attachToRecyclerView(binding.libraryList)
 
         binding.addFolderButton.setOnClickListener { addFolder.launch(null) }
         binding.settingsButton.setOnClickListener {
@@ -108,7 +126,7 @@ class LibraryActivity : AppCompatActivity() {
             this,
             object : OnBackPressedCallback(true) {
                 override fun handleOnBackPressed() {
-                    if (folderStack.isNotEmpty()) {
+                    if (openCollectionId != null || folderStack.isNotEmpty()) {
                         navigateBack()
                     } else {
                         isEnabled = false
@@ -160,38 +178,68 @@ class LibraryActivity : AppCompatActivity() {
     }
 
     private fun navigateBack() {
-        if (folderStack.isNotEmpty()) {
+        if (openCollectionId != null) {
+            openCollectionId = null
+            openCollectionName = ""
+            refreshList()
+        } else if (folderStack.isNotEmpty()) {
             folderStack.removeAt(folderStack.size - 1)
             refreshList()
         }
     }
 
     /** Continue Watching only shows at the library root -- once you've navigated into a
-     *  folder it drops away rather than following you around, since it isn't scoped to
-     *  what you're currently browsing. It travels as the grid's first row rather than a
-     *  pinned section, so it scrolls away with everything else. */
+     *  folder (or a collection) it drops away rather than following you around, since
+     *  it isn't scoped to what you're currently browsing. It travels as the grid's first
+     *  row rather than a pinned section, so it scrolls away with everything else. */
     private fun refreshList() {
-        val items: List<LibraryItem> = if (folderStack.isEmpty()) {
-            val continueWatching = libraryRepository.resolveVideoItems(
-                progressRepository.getAllProgress().map { it.first },
-            )
-            continueWatchingUris = continueWatching.map { it.document.uri.toString() }.toSet()
-            val rail = if (continueWatching.isEmpty()) {
-                emptyList()
-            } else {
-                listOf(LibraryItem.ContinueWatchingRail(continueWatching))
+        val collectionId = openCollectionId
+        val items: List<LibraryItem> = when {
+            collectionId != null -> {
+                continueWatchingUris = emptySet()
+                val collection = collectionRepository.get(collectionId)
+                if (collection == null) {
+                    openCollectionId = null
+                    emptyList()
+                } else {
+                    val query = searchQuery.trim()
+                    val videos = libraryRepository.resolveVideoItems(collection.videoUris)
+                    if (query.isEmpty()) videos else videos.filter { it.name.contains(query, ignoreCase = true) }
+                }
             }
+            folderStack.isEmpty() -> {
+                val continueWatching = libraryRepository.resolveVideoItems(
+                    progressRepository.getAllProgress().map { it.first },
+                )
+                continueWatchingUris = continueWatching.map { it.document.uri.toString() }.toSet()
+                val rail = if (continueWatching.isEmpty()) {
+                    emptyList()
+                } else {
+                    listOf(LibraryItem.ContinueWatchingRail(continueWatching))
+                }
+                val collections: List<LibraryItem> = collectionRepository.getAll()
+                    .sortedBy { it.name.lowercase() }
+                    .map { LibraryItem.CollectionItem(it.id, it.name, it.videoUris.size) }
 
-            rail + filterAndSort(libraryRepository.getRootDocuments())
-        } else {
-            continueWatchingUris = emptySet()
-            filterAndSort(libraryRepository.listChildren(folderStack.last()))
+                rail + filterAndSort(collections + libraryRepository.getRootDocuments())
+            }
+            else -> {
+                continueWatchingUris = emptySet()
+                filterAndSort(libraryRepository.listChildren(folderStack.last()))
+            }
         }
-        adapter.submitList(items, isRootLevel = folderStack.isEmpty())
+        adapter.submitList(items, isRootLevel = folderStack.isEmpty() && collectionId == null)
         binding.emptyLibraryText.visibility = if (items.isEmpty()) View.VISIBLE else View.GONE
 
-        binding.breadcrumbRow.visibility = if (folderStack.isEmpty()) View.GONE else View.VISIBLE
-        binding.breadcrumbText.text = folderStack.joinToString(" / ") { it.name ?: "?" }
+        val browsingSomewhere = collectionId != null || folderStack.isNotEmpty()
+        binding.breadcrumbRow.visibility = if (browsingSomewhere) View.VISIBLE else View.GONE
+        binding.breadcrumbText.text = when {
+            collectionId != null -> openCollectionName
+            else -> folderStack.joinToString(" / ") { it.name ?: "?" }
+        }
+        // Order inside a collection is manual (drag to reorder), so the name/date
+        // sort toggle doesn't apply there.
+        binding.sortButton.visibility = if (collectionId != null) View.GONE else View.VISIBLE
     }
 
     private fun filterAndSort(items: List<LibraryItem>): List<LibraryItem> {
@@ -203,6 +251,7 @@ class LibraryActivity : AppCompatActivity() {
                 val name = when (item) {
                     is LibraryItem.FolderItem -> item.name
                     is LibraryItem.VideoItem -> item.name
+                    is LibraryItem.CollectionItem -> item.name
                     is LibraryItem.ContinueWatchingRail -> ""
                 }
                 name.contains(query, ignoreCase = true)
@@ -214,10 +263,43 @@ class LibraryActivity : AppCompatActivity() {
             when (item) {
                 is LibraryItem.FolderItem -> item.document.lastModified()
                 is LibraryItem.VideoItem -> item.document.lastModified()
+                is LibraryItem.CollectionItem -> Long.MAX_VALUE
                 is LibraryItem.ContinueWatchingRail -> Long.MAX_VALUE
             }
         }
     }
+
+    /** Active only while a collection is open -- drag to reorder its videos, since that
+     *  order is the whole point of a manually-curated shelf. */
+    private val reorderTouchHelper = ItemTouchHelper(
+        object : ItemTouchHelper.SimpleCallback(
+            ItemTouchHelper.UP or ItemTouchHelper.DOWN or ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT,
+            0,
+        ) {
+            override fun isLongPressDragEnabled() = openCollectionId != null
+
+            override fun onMove(
+                recyclerView: RecyclerView,
+                viewHolder: RecyclerView.ViewHolder,
+                target: RecyclerView.ViewHolder,
+            ): Boolean {
+                if (openCollectionId == null) return false
+                adapter.moveItem(viewHolder.bindingAdapterPosition, target.bindingAdapterPosition)
+                return true
+            }
+
+            override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) = Unit
+
+            override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
+                super.clearView(recyclerView, viewHolder)
+                val collectionId = openCollectionId ?: return
+                val uris = adapter.currentItems()
+                    .filterIsInstance<LibraryItem.VideoItem>()
+                    .map { it.document.uri.toString() }
+                collectionRepository.setVideoOrder(collectionId, uris)
+            }
+        },
+    )
 
     private fun launchPlayer(video: LibraryItem.VideoItem) {
         val settings = settingsRepository.effectiveSettings(video.document.uri.toString())
@@ -240,18 +322,32 @@ class LibraryActivity : AppCompatActivity() {
             .show()
     }
 
+    private fun confirmRemoveCollection(collection: LibraryItem.CollectionItem) {
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.remove_collection_title, collection.name))
+            .setMessage(R.string.remove_collection_message)
+            .setPositiveButton(R.string.remove) { _, _ ->
+                collectionRepository.delete(collection.id)
+                refreshList()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
     private fun showVideoMenu(video: LibraryItem.VideoItem, anchor: View) {
         val uriString = video.document.uri.toString()
 
         PopupMenu(this, anchor).apply {
             menu.add(getString(R.string.effect_settings_for_video))
             menu.add(getString(R.string.edit_title_and_poster))
+            menu.add(getString(R.string.add_to_collection))
             if (uriString in continueWatchingUris) {
                 menu.add(getString(R.string.remove_from_continue_watching))
             }
             setOnMenuItemClickListener { menuItem ->
                 when (menuItem.title) {
                     getString(R.string.edit_title_and_poster) -> openMetadataEditor(video)
+                    getString(R.string.add_to_collection) -> showAddToCollectionDialog(video)
                     getString(R.string.remove_from_continue_watching) -> {
                         progressRepository.hideFromContinueWatching(uriString)
                         refreshList()
@@ -261,6 +357,39 @@ class LibraryActivity : AppCompatActivity() {
                 true
             }
         }.show()
+    }
+
+    private fun showAddToCollectionDialog(video: LibraryItem.VideoItem) {
+        val existing = collectionRepository.getAll()
+        val labels = (existing.map { it.name } + getString(R.string.new_collection)).toTypedArray()
+
+        AlertDialog.Builder(this)
+            .setTitle(R.string.add_to_collection)
+            .setItems(labels) { _, index ->
+                if (index < existing.size) {
+                    collectionRepository.addVideo(existing[index].id, video.document.uri.toString())
+                    refreshList()
+                } else {
+                    promptNewCollection(video)
+                }
+            }
+            .show()
+    }
+
+    private fun promptNewCollection(video: LibraryItem.VideoItem) {
+        val input = EditText(this)
+        AlertDialog.Builder(this)
+            .setTitle(R.string.new_collection_prompt_title)
+            .setView(input)
+            .setPositiveButton(R.string.create) { _, _ ->
+                val name = input.text?.toString()?.trim().orEmpty()
+                if (name.isNotEmpty()) {
+                    collectionRepository.create(name, video.document.uri.toString())
+                    refreshList()
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     private fun openOverrideSettings(video: LibraryItem.VideoItem) {

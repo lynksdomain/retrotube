@@ -59,6 +59,7 @@ class VideoMetadataActivity : AppCompatActivity() {
         val rawName = DocumentFile.fromSingleUri(this, videoUri)?.name ?: "Untitled"
         val defaultTitle = cleanupName(rawName)
         binding.titleInput.setText(metadataRepository.getCustomTitle(uriExtra) ?: defaultTitle)
+        binding.tagsInput.setText(metadataRepository.getTags(uriExtra).joinToString(", "))
 
         val existingThumbnail = metadataRepository.getCustomThumbnail(uriExtra)
         if (existingThumbnail != null) {
@@ -148,6 +149,8 @@ class VideoMetadataActivity : AppCompatActivity() {
             metadataRepository.clearCustomTitle(uriString)
         }
         selectedBitmap?.let { metadataRepository.setCustomThumbnail(uriString, it) }
+        val tags = binding.tagsInput.text?.toString().orEmpty().split(",")
+        metadataRepository.setTags(uriString, tags)
         finish()
     }
 
@@ -155,6 +158,7 @@ class VideoMetadataActivity : AppCompatActivity() {
         val uriString = videoUri.toString()
         metadataRepository.clearCustomTitle(uriString)
         metadataRepository.clearCustomThumbnail(uriString)
+        metadataRepository.setTags(uriString, emptyList())
         finish()
     }
 

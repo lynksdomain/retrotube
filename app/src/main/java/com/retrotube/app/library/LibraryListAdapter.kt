@@ -8,6 +8,8 @@ import android.view.ViewGroup
 import android.view.animation.OvershootInterpolator
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.retrotube.app.R
+import com.retrotube.app.databinding.ItemCollectionBinding
 import com.retrotube.app.databinding.ItemContinueWatchingRailBinding
 import com.retrotube.app.databinding.ItemFolderBinding
 import com.retrotube.app.databinding.ItemVideoBinding
@@ -26,6 +28,8 @@ class LibraryListAdapter(
     private val onFolderRemoveClick: (LibraryItem.FolderItem) -> Unit,
     private val onVideoClick: (LibraryItem.VideoItem) -> Unit,
     private val onVideoMenuClick: (LibraryItem.VideoItem, View) -> Unit,
+    private val onCollectionClick: (LibraryItem.CollectionItem) -> Unit,
+    private val onCollectionRemoveClick: (LibraryItem.CollectionItem) -> Unit,
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     private val progressRepository = PlaybackProgressRepository(context)
@@ -41,8 +45,23 @@ class LibraryListAdapter(
         notifyDataSetChanged()
     }
 
-    /** Folders and videos are single grid cells; the Continue Watching rail spans
-     *  the whole row, same as any other full-width shelf header. */
+    /** Read-only snapshot of what's currently shown, in display order -- used to
+     *  persist a collection's order after a drag reorder. */
+    fun currentItems(): List<LibraryItem> = items
+
+    /** Moves an item from [from] to [to] with an animated shift rather than a full
+     *  rebind, for drag-to-reorder inside a collection. */
+    fun moveItem(from: Int, to: Int) {
+        if (from == to) return
+        val mutable = items.toMutableList()
+        val moved = mutable.removeAt(from)
+        mutable.add(to, moved)
+        items = mutable
+        notifyItemMoved(from, to)
+    }
+
+    /** Folders, videos and collections are single grid cells; the Continue Watching
+     *  rail spans the whole row, same as any other full-width shelf header. */
     fun spanSizeFor(position: Int, spanCount: Int): Int =
         if (items[position] is LibraryItem.ContinueWatchingRail) spanCount else 1
 
@@ -50,12 +69,14 @@ class LibraryListAdapter(
         is LibraryItem.FolderItem -> VIEW_TYPE_FOLDER
         is LibraryItem.VideoItem -> VIEW_TYPE_VIDEO
         is LibraryItem.ContinueWatchingRail -> VIEW_TYPE_CONTINUE_WATCHING_RAIL
+        is LibraryItem.CollectionItem -> VIEW_TYPE_COLLECTION
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         val inflater = LayoutInflater.from(parent.context)
         return when (viewType) {
             VIEW_TYPE_FOLDER -> FolderViewHolder(ItemFolderBinding.inflate(inflater, parent, false))
+            VIEW_TYPE_COLLECTION -> CollectionViewHolder(ItemCollectionBinding.inflate(inflater, parent, false))
             VIEW_TYPE_CONTINUE_WATCHING_RAIL -> RailViewHolder(
                 ItemContinueWatchingRailBinding.inflate(inflater, parent, false),
             )
@@ -117,6 +138,15 @@ class LibraryListAdapter(
                 holder as RailViewHolder
                 holder.railAdapter.submitList(item.videos)
             }
+            is LibraryItem.CollectionItem -> {
+                holder as CollectionViewHolder
+                holder.binding.collectionName.text = item.name
+                holder.binding.collectionVideoCount.text =
+                    context.getString(R.string.collection_video_count, item.videoCount)
+                holder.binding.root.setOnClickListener { onCollectionClick(item) }
+                holder.binding.root.applySpringPress()
+                holder.binding.removeCollectionButton.setOnClickListener { onCollectionRemoveClick(item) }
+            }
         }
     }
 
@@ -147,6 +177,7 @@ class LibraryListAdapter(
 
     class FolderViewHolder(val binding: ItemFolderBinding) : RecyclerView.ViewHolder(binding.root)
     class VideoViewHolder(val binding: ItemVideoBinding) : RecyclerView.ViewHolder(binding.root)
+    class CollectionViewHolder(val binding: ItemCollectionBinding) : RecyclerView.ViewHolder(binding.root)
 
     inner class RailViewHolder(
         private val binding: ItemContinueWatchingRailBinding,
@@ -164,5 +195,6 @@ class LibraryListAdapter(
         private const val VIEW_TYPE_FOLDER = 0
         private const val VIEW_TYPE_VIDEO = 1
         private const val VIEW_TYPE_CONTINUE_WATCHING_RAIL = 2
+        private const val VIEW_TYPE_COLLECTION = 3
     }
 }

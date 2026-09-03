@@ -43,6 +43,23 @@ class VideoMetadataRepository(private val context: Context) {
         prefs.edit().remove(thumbnailKey(videoUri)).apply()
     }
 
+    fun getTags(videoUri: String): List<String> =
+        prefs.getString(tagsKey(videoUri), null)
+            ?.split(",")
+            ?.map { it.trim() }
+            ?.filter { it.isNotEmpty() }
+            ?: emptyList()
+
+    fun setTags(videoUri: String, tags: List<String>) {
+        val cleaned = tags.map { it.trim() }.filter { it.isNotEmpty() }
+        if (cleaned.isEmpty()) {
+            prefs.edit().remove(tagsKey(videoUri)).apply()
+        } else {
+            prefs.edit().putString(tagsKey(videoUri), cleaned.joinToString(",")).apply()
+        }
+    }
+
     private fun titleKey(videoUri: String) = "title_$videoUri"
     private fun thumbnailKey(videoUri: String) = "thumb_$videoUri"
+    private fun tagsKey(videoUri: String) = "tags_$videoUri"
 }
