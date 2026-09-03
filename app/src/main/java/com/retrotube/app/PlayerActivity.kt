@@ -27,6 +27,7 @@ class PlayerActivity : AppCompatActivity() {
     companion object {
         const val EXTRA_SETTINGS = "extra_settings"
         private const val PROGRESS_SAVE_INTERVAL_MS = 5_000L
+        private const val AMBIENT_IDLE_DELAY_MS = 20_000L
     }
 
     private lateinit var binding: ActivityPlayerBinding
@@ -40,6 +41,17 @@ class PlayerActivity : AppCompatActivity() {
             saveProgress()
             progressHandler.postDelayed(this, PROGRESS_SAVE_INTERVAL_MS)
         }
+    }
+
+    /** Dims to an ambient standby look after sitting paused for a while, rather than just
+     *  a frozen frame -- "feels alive, not broken." */
+    private val ambientHandler = Handler(Looper.getMainLooper())
+    private val showAmbient = Runnable {
+        // PlayerView re-raises its own controller above siblings whenever it toggles
+        // visibility, so our overlay has to reassert itself on top each time too.
+        binding.ambientOverlay.visibility = android.view.View.VISIBLE
+        binding.ambientOverlay.bringToFront()
+        binding.ambientOverlay.animate().alpha(1f).setDuration(1200).start()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -118,6 +130,17 @@ class PlayerActivity : AppCompatActivity() {
                     exoPlayer.seekTo(savedProgress.positionMs)
                 }
             }
+
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                if (isPlaying) {
+                    ambientHandler.removeCallbacks(showAmbient)
+                    binding.ambientOverlay.animate().cancel()
+                    binding.ambientOverlay.alpha = 0f
+                    binding.ambientOverlay.visibility = android.view.View.GONE
+                } else {
+                    ambientHandler.postDelayed(showAmbient, AMBIENT_IDLE_DELAY_MS)
+                }
+            }
         })
 
         exoPlayer.setMediaItem(MediaItem.fromUri(uri))
@@ -137,6 +160,7 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun releasePlayer() {
         progressHandler.removeCallbacks(progressSaver)
+        ambientHandler.removeCallbacks(showAmbient)
         player?.release()
         player = null
     }
