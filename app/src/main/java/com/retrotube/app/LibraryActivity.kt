@@ -12,6 +12,7 @@ import com.retrotube.app.databinding.ActivityLibraryBinding
 import com.retrotube.app.library.LibraryItem
 import com.retrotube.app.library.LibraryListAdapter
 import com.retrotube.app.library.LibraryRepository
+import com.retrotube.app.progress.PlaybackProgressRepository
 import com.retrotube.app.settings.SettingsRepository
 
 class LibraryActivity : AppCompatActivity() {
@@ -19,6 +20,7 @@ class LibraryActivity : AppCompatActivity() {
     private lateinit var binding: ActivityLibraryBinding
     private lateinit var libraryRepository: LibraryRepository
     private lateinit var settingsRepository: SettingsRepository
+    private lateinit var progressRepository: PlaybackProgressRepository
     private lateinit var adapter: LibraryListAdapter
 
     /** Empty = showing the top-level list of added root folders. */
@@ -38,6 +40,7 @@ class LibraryActivity : AppCompatActivity() {
 
         libraryRepository = LibraryRepository(this)
         settingsRepository = SettingsRepository(this)
+        progressRepository = PlaybackProgressRepository(this)
 
         adapter = LibraryListAdapter(
             context = this,
@@ -88,7 +91,15 @@ class LibraryActivity : AppCompatActivity() {
 
     private fun refreshList() {
         val items: List<LibraryItem> = if (folderStack.isEmpty()) {
-            libraryRepository.getRootDocuments()
+            val continueWatching = libraryRepository.resolveVideoItems(
+                progressRepository.getAllProgress().map { it.first },
+            )
+            val continueWatchingSection = if (continueWatching.isNotEmpty()) {
+                listOf(LibraryItem.SectionHeader(getString(R.string.continue_watching))) + continueWatching
+            } else {
+                emptyList()
+            }
+            continueWatchingSection + libraryRepository.getRootDocuments()
         } else {
             libraryRepository.listChildren(folderStack.last())
         }

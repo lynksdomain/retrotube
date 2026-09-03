@@ -12,18 +12,17 @@ class PlaybackProgressRepository(context: Context) {
 
     private val prefs = context.getSharedPreferences("retrotube_progress", Context.MODE_PRIVATE)
 
-    data class Progress(val positionMs: Long, val durationMs: Long) {
+    data class Progress(val positionMs: Long, val durationMs: Long, val updatedAtMs: Long) {
         val fraction: Float get() = if (durationMs > 0) positionMs.toFloat() / durationMs else 0f
     }
 
-    fun getProgress(videoUri: String): Progress? {
-        val raw = prefs.getString(videoUri, null) ?: return null
-        val parts = raw.split("|")
-        if (parts.size != 2) return null
-        val position = parts[0].toLongOrNull() ?: return null
-        val duration = parts[1].toLongOrNull() ?: return null
-        return Progress(position, duration)
-    }
+    fun getProgress(videoUri: String): Progress? = parse(prefs.getString(videoUri, null))
+
+    /** All in-progress videos, most recently watched first -- feeds "Continue Watching". */
+    fun getAllProgress(): List<Pair<String, Progress>> =
+        prefs.all.mapNotNull { (uri, raw) ->
+            parse(raw as? String)?.let { uri to it }
+        }.sortedByDescending { it.second.updatedAtMs }
 
     fun saveProgress(videoUri: String, positionMs: Long, durationMs: Long) {
         if (durationMs <= 0) return
@@ -31,11 +30,21 @@ class PlaybackProgressRepository(context: Context) {
             clearProgress(videoUri)
             return
         }
-        prefs.edit().putString(videoUri, "$positionMs|$durationMs").apply()
+        prefs.edit().putString(videoUri, "$positionMs|$durationMs|${System.currentTimeMillis()}").apply()
     }
 
     fun clearProgress(videoUri: String) {
         prefs.edit().remove(videoUri).apply()
+    }
+
+    private fun parse(raw: String?): Progress? {
+        if (raw == null) return null
+        val parts = raw.split("|")
+        if (parts.size != 3) return null
+        val position = parts[0].toLongOrNull() ?: return null
+        val duration = parts[1].toLongOrNull() ?: return null
+        val updatedAt = parts[2].toLongOrNull() ?: return null
+        return Progress(position, duration, updatedAt)
     }
 
     companion object {

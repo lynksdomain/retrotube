@@ -3,7 +3,9 @@ package com.retrotube.app.library
 import android.content.Context
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import com.retrotube.app.R
 import com.retrotube.app.databinding.ItemFolderBinding
 import com.retrotube.app.databinding.ItemVideoBinding
 import com.retrotube.app.progress.PlaybackProgressRepository
@@ -30,14 +32,15 @@ class LibraryListAdapter(
     override fun getItemViewType(position: Int): Int = when (items[position]) {
         is LibraryItem.FolderItem -> VIEW_TYPE_FOLDER
         is LibraryItem.VideoItem -> VIEW_TYPE_VIDEO
+        is LibraryItem.SectionHeader -> VIEW_TYPE_HEADER
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         val inflater = LayoutInflater.from(parent.context)
-        return if (viewType == VIEW_TYPE_FOLDER) {
-            FolderViewHolder(ItemFolderBinding.inflate(inflater, parent, false))
-        } else {
-            VideoViewHolder(ItemVideoBinding.inflate(inflater, parent, false))
+        return when (viewType) {
+            VIEW_TYPE_FOLDER -> FolderViewHolder(ItemFolderBinding.inflate(inflater, parent, false))
+            VIEW_TYPE_VIDEO -> VideoViewHolder(ItemVideoBinding.inflate(inflater, parent, false))
+            else -> HeaderViewHolder(inflater.inflate(R.layout.item_section_header, parent, false) as TextView)
         }
     }
 
@@ -73,6 +76,10 @@ class LibraryListAdapter(
                     holder.binding.progressBarFill.visibility = android.view.View.GONE
                 }
             }
+            is LibraryItem.SectionHeader -> {
+                holder as HeaderViewHolder
+                holder.textView.text = item.title
+            }
         }
     }
 
@@ -80,9 +87,11 @@ class LibraryListAdapter(
 
     class FolderViewHolder(val binding: ItemFolderBinding) : RecyclerView.ViewHolder(binding.root)
     class VideoViewHolder(val binding: ItemVideoBinding) : RecyclerView.ViewHolder(binding.root)
+    class HeaderViewHolder(val textView: TextView) : RecyclerView.ViewHolder(textView)
 
     companion object {
         private const val VIEW_TYPE_FOLDER = 0
         private const val VIEW_TYPE_VIDEO = 1
+        private const val VIEW_TYPE_HEADER = 2
     }
 }

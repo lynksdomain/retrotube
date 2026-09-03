@@ -69,6 +69,21 @@ class LibraryRepository(private val context: Context) {
         }
     }
 
+    /**
+     * Resolves raw video URI strings (from [com.retrotube.app.progress.PlaybackProgressRepository])
+     * back into browsable [LibraryItem.VideoItem]s, in the order given. A URI silently drops
+     * out if its file was deleted or its permission is gone, same defensive pattern as
+     * [getRootDocuments]/[listChildren].
+     */
+    fun resolveVideoItems(uriStrings: List<String>): List<LibraryItem.VideoItem> =
+        uriStrings.mapNotNull { uriString ->
+            runCatching {
+                val doc = DocumentFile.fromSingleUri(context, Uri.parse(uriString)) ?: return@mapNotNull null
+                if (!doc.exists()) return@mapNotNull null
+                LibraryItem.VideoItem(doc, doc.name ?: "Untitled")
+            }.getOrNull()
+        }
+
     /** Immediate children of [folder] only -- subfolders first, then videos, both alphabetical. */
     fun listChildren(folder: DocumentFile): List<LibraryItem> {
         val folders = mutableListOf<LibraryItem.FolderItem>()
