@@ -11,6 +11,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.retrotube.app.databinding.ItemContinueWatchingRailBinding
 import com.retrotube.app.databinding.ItemFolderBinding
 import com.retrotube.app.databinding.ItemVideoBinding
+import com.retrotube.app.metadata.VideoMetadataRepository
 import com.retrotube.app.progress.PlaybackProgressRepository
 import com.retrotube.app.settings.SettingsRepository
 
@@ -29,6 +30,7 @@ class LibraryListAdapter(
 
     private val progressRepository = PlaybackProgressRepository(context)
     private val settingsRepository = SettingsRepository(context)
+    private val metadataRepository = VideoMetadataRepository(context)
 
     private var items: List<LibraryItem> = emptyList()
     private var isRootLevel: Boolean = false
@@ -78,16 +80,22 @@ class LibraryListAdapter(
             }
             is LibraryItem.VideoItem -> {
                 holder as VideoViewHolder
-                holder.binding.videoName.text = item.displayName
+                val uriString = item.document.uri.toString()
+                holder.binding.videoName.text = metadataRepository.getCustomTitle(uriString) ?: item.displayName
                 holder.binding.presetBadge.text =
-                    settingsRepository.effectiveSettings(item.document.uri.toString()).preset.label
+                    settingsRepository.effectiveSettings(uriString).preset.label
                 if (item.locationHint.isNotBlank()) {
                     holder.binding.videoLocationHint.visibility = View.VISIBLE
                     holder.binding.videoLocationHint.text = item.locationHint
                 } else {
                     holder.binding.videoLocationHint.visibility = View.GONE
                 }
-                ThumbnailLoader.load(context, item.document.uri, holder.binding.videoThumbnail)
+                val customThumbnail = metadataRepository.getCustomThumbnail(uriString)
+                if (customThumbnail != null) {
+                    holder.binding.videoThumbnail.setImageBitmap(customThumbnail)
+                } else {
+                    ThumbnailLoader.load(context, item.document.uri, holder.binding.videoThumbnail)
+                }
                 holder.binding.root.setOnClickListener { onVideoClick(item) }
                 holder.binding.root.applySpringPress()
                 holder.binding.videoMenuButton.setOnClickListener {

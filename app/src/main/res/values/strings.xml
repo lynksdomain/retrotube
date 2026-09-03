@@ -27,6 +27,12 @@
     <string name="sort_date">Sort: Date</string>
     <string name="effect_settings_for_video">Effect settings</string>
     <string name="remove_from_continue_watching">Remove from Continue Watching</string>
+    <string name="edit_title_and_poster">Edit title &amp; poster</string>
+    <string name="video_metadata_title">Edit Title &amp; Poster</string>
+    <string name="title_input_label">Title</string>
+    <string name="pick_frame_label">Pick a frame</string>
+    <string name="save_metadata">Save</string>
+    <string name="reset_to_auto">Reset to Auto</string>
 
     <!-- Row titles + descriptions for the effect settings screen. -->
     <string name="title_zfast_crt">zfast-crt</string>

@@ -242,16 +242,16 @@ class LibraryActivity : AppCompatActivity() {
 
     private fun showVideoMenu(video: LibraryItem.VideoItem, anchor: View) {
         val uriString = video.document.uri.toString()
-        if (uriString !in continueWatchingUris) {
-            openOverrideSettings(video)
-            return
-        }
 
         PopupMenu(this, anchor).apply {
             menu.add(getString(R.string.effect_settings_for_video))
-            menu.add(getString(R.string.remove_from_continue_watching))
+            menu.add(getString(R.string.edit_title_and_poster))
+            if (uriString in continueWatchingUris) {
+                menu.add(getString(R.string.remove_from_continue_watching))
+            }
             setOnMenuItemClickListener { menuItem ->
                 when (menuItem.title) {
+                    getString(R.string.edit_title_and_poster) -> openMetadataEditor(video)
                     getString(R.string.remove_from_continue_watching) -> {
                         progressRepository.hideFromContinueWatching(uriString)
                         refreshList()
@@ -268,6 +268,14 @@ class LibraryActivity : AppCompatActivity() {
             Intent(this, EffectSettingsActivity::class.java).apply {
                 putExtra(EffectSettingsActivity.EXTRA_MODE, EffectSettingsActivity.MODE_OVERRIDE)
                 putExtra(EffectSettingsActivity.EXTRA_VIDEO_URI, video.document.uri.toString())
+            },
+        )
+    }
+
+    private fun openMetadataEditor(video: LibraryItem.VideoItem) {
+        startActivity(
+            Intent(this, VideoMetadataActivity::class.java).apply {
+                putExtra(VideoMetadataActivity.EXTRA_VIDEO_URI, video.document.uri.toString())
             },
         )
     }
