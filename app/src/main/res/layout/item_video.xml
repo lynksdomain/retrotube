@@ -20,14 +20,14 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:scaleType="centerCrop"
-            android:background="#222222" />
+            android:background="@color/thumbnail_placeholder" />
 
         <View
             android:id="@+id/progressBarTrack"
             android:layout_width="match_parent"
             android:layout_height="3dp"
             android:layout_gravity="bottom"
-            android:background="#66000000"
+            android:background="@color/progress_track"
             android:visibility="gone" />
 
         <View
@@ -35,7 +35,7 @@
             android:layout_width="match_parent"
             android:layout_height="3dp"
             android:layout_gravity="bottom|start"
-            android:background="#FF5252"
+            android:background="@drawable/progress_bar_fill"
             android:visibility="gone" />
 
     </FrameLayout>

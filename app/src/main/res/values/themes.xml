@@ -1,5 +1,19 @@
 <resources>
-    <style name="Theme.RetroTube" parent="Theme.MaterialComponents.DayNight.NoActionBar" />
+    <!-- Deliberately not DayNight: a CRT app should look the same regardless of the
+         device's system light/dark setting, not flip to a light Material theme. -->
+    <style name="Theme.RetroTube" parent="Theme.MaterialComponents.NoActionBar">
+        <item name="colorPrimary">@color/retro_teal</item>
+        <item name="colorPrimaryDark">@color/retro_background</item>
+        <item name="colorOnPrimary">@color/retro_teal_on</item>
+        <item name="colorSecondary">@color/retro_magenta</item>
+        <item name="colorOnSecondary">@color/retro_magenta_on</item>
+        <item name="colorSurface">@color/retro_surface</item>
+        <item name="colorOnSurface">@color/retro_text_primary</item>
+        <item name="colorOnBackground">@color/retro_text_primary</item>
+        <item name="android:windowBackground">@color/retro_background</item>
+        <item name="android:textColorPrimary">@color/retro_text_primary</item>
+        <item name="android:textColorSecondary">@color/retro_text_muted</item>
+    </style>
 
     <style name="Theme.RetroTube.Player" parent="Theme.MaterialComponents.NoActionBar">
         <item name="android:windowFullscreen">true</item>

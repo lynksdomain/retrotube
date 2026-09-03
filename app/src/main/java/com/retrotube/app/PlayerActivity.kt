@@ -7,6 +7,7 @@ import android.os.Looper
 import android.view.WindowManager
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.media3.common.Effect
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
@@ -98,7 +99,11 @@ class PlayerActivity : AppCompatActivity() {
                     getString(R.string.compare_button)
                 }
                 compareButton.setBackgroundColor(
-                    if (showingRaw) 0xCCFF5252.toInt() else 0x40FFFFFF,
+                    if (showingRaw) {
+                        ContextCompat.getColor(this, R.color.retro_magenta)
+                    } else {
+                        0x40FFFFFF
+                    },
                 )
             }
         }
