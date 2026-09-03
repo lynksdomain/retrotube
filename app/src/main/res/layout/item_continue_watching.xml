@@ -47,15 +47,34 @@
             app:layout_constraintEnd_toEndOf="@id/continueThumbnail" />
 
         <TextView
+            android:id="@+id/continueLocationHint"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp"
+            android:layout_marginTop="6dp"
+            android:textColor="@color/retro_teal"
+            android:textSize="9sp"
+            android:maxLines="1"
+            android:ellipsize="start"
+            android:visibility="gone"
+            app:layout_constraintTop_toBottomOf="@id/continueThumbnail"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <TextView
             android:id="@+id/continueName"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_margin="8dp"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp"
+            android:layout_marginTop="2dp"
+            android:layout_marginBottom="8dp"
             android:textColor="@color/retro_text_primary"
             android:textSize="11.5sp"
             android:maxLines="1"
             android:ellipsize="end"
-            app:layout_constraintTop_toBottomOf="@id/continueThumbnail"
+            app:layout_constraintTop_toBottomOf="@id/continueLocationHint"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 

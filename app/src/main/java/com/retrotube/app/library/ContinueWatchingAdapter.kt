@@ -2,6 +2,7 @@ package com.retrotube.app.library
 
 import android.content.Context
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.retrotube.app.databinding.ItemContinueWatchingBinding
@@ -31,6 +32,12 @@ class ContinueWatchingAdapter(
         val item = items[position]
         val uriString = item.document.uri.toString()
         holder.binding.continueName.text = metadataRepository.getCustomTitle(uriString) ?: item.displayName
+        if (item.locationHint.isNotBlank()) {
+            holder.binding.continueLocationHint.visibility = View.VISIBLE
+            holder.binding.continueLocationHint.text = item.locationHint
+        } else {
+            holder.binding.continueLocationHint.visibility = View.GONE
+        }
         val customThumbnail = metadataRepository.getCustomThumbnail(uriString)
         if (customThumbnail != null) {
             holder.binding.continueThumbnail.setImageBitmap(customThumbnail)

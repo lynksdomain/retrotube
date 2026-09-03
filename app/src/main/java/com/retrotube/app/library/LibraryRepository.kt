@@ -80,14 +80,13 @@ class LibraryRepository(private val context: Context) {
             runCatching {
                 val doc = DocumentFile.fromSingleUri(context, Uri.parse(uriString)) ?: return@mapNotNull null
                 if (!doc.exists()) return@mapNotNull null
-                val locationHint = runCatching { doc.parentFile?.name }.getOrNull().orEmpty()
-                LibraryItem.VideoItem(doc, doc.name ?: "Untitled", locationHint)
+                LibraryItem.VideoItem(doc, doc.name ?: "Untitled", pathLabelForSingleDocument(doc))
             }.getOrNull()
         }
 
     /** Immediate children of [folder] only -- subfolders first, then videos, both alphabetical. */
     fun listChildren(folder: DocumentFile): List<LibraryItem> {
-        val folderName = folder.name ?: "Folder"
+        val folderPath = pathLabelFor(folder)
         val folders = mutableListOf<LibraryItem.FolderItem>()
         val videos = mutableListOf<LibraryItem.VideoItem>()
         val children = runCatching { folder.listFiles() }.getOrDefault(emptyArray())
@@ -95,10 +94,69 @@ class LibraryRepository(private val context: Context) {
             when {
                 child.isDirectory -> folders.add(LibraryItem.FolderItem(child, child.name ?: "Folder"))
                 child.isFile && (child.type?.startsWith("video/") == true) ->
-                    videos.add(LibraryItem.VideoItem(child, child.name ?: "Untitled", folderName))
+                    videos.add(LibraryItem.VideoItem(child, child.name ?: "Untitled", folderPath))
             }
         }
         return folders.sortedBy { it.name.lowercase() } + videos.sortedBy { it.name.lowercase() }
+    }
+
+    /**
+     * The full breadcrumb for [folder] -- its own name plus every ancestor up to
+     * (and including) whichever added root folder contains it, joined by "/". Walking
+     * stops at the first registered root it hits rather than continuing past it into
+     * the rest of the device's real filesystem path, which the SAF provider's own
+     * parentFile chain doesn't otherwise know to stop at.
+     */
+    fun pathLabelFor(folder: DocumentFile): String {
+        val rootIds = getRootDocuments()
+            .mapNotNull { runCatching { DocumentsContract.getDocumentId(it.document.uri) }.getOrNull() }
+            .toSet()
+
+        val segments = mutableListOf<String>()
+        var current: DocumentFile? = folder
+        while (current != null) {
+            val node = current
+            val name = node.name ?: break
+            segments.add(0, name)
+            val currentId = runCatching { DocumentsContract.getDocumentId(node.uri) }.getOrNull()
+            if (currentId != null && currentId in rootIds) break
+            current = node.parentFile
+        }
+        return segments.joinToString("/")
+    }
+
+    /**
+     * A [DocumentFile] from [DocumentFile.fromSingleUri] (as opposed to one reached by
+     * walking down from a tree root via [DocumentFile.listFiles]) generally can't answer
+     * `.parentFile` -- there's no tree context to walk up from a bare document URI, so
+     * that call just returns null on most providers. This instead parses the document
+     * id directly: Android's standard local-storage provider (what "Add Folder" almost
+     * always resolves to) encodes ids as "<volume>:<relative/path/to/file>", which is
+     * enough to recover the path without any tree navigation at all.
+     */
+    private fun pathLabelForSingleDocument(doc: DocumentFile): String {
+        val videoSegments = relativePathSegments(doc.uri) ?: return ""
+        if (videoSegments.size <= 1) return ""
+        val parentSegments = videoSegments.dropLast(1)
+
+        for (root in getRootDocuments()) {
+            val rootSegments = relativePathSegments(root.document.uri) ?: continue
+            if (rootSegments.isEmpty()) continue
+            if (parentSegments.size >= rootSegments.size &&
+                parentSegments.subList(0, rootSegments.size) == rootSegments
+            ) {
+                return parentSegments.subList(rootSegments.size - 1, parentSegments.size).joinToString("/")
+            }
+        }
+        // Root not matched (moved/removed since) -- the immediate folder name beats nothing.
+        return parentSegments.lastOrNull().orEmpty()
+    }
+
+    private fun relativePathSegments(uri: Uri): List<String>? {
+        val documentId = runCatching { DocumentsContract.getDocumentId(uri) }.getOrNull() ?: return null
+        val relativePath = documentId.substringAfter(':', missingDelimiterValue = "")
+        if (relativePath.isEmpty()) return null
+        return relativePath.split("/").filter { it.isNotEmpty() }
     }
 
     /**
