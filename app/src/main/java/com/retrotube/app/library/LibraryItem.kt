@@ -33,4 +33,8 @@ sealed class LibraryItem {
      *  opening it shows a hand-picked, manually-orderable set of videos instead of
      *  whatever's really on disk in one place. */
     data class CollectionItem(val id: String, val name: String, val videoCount: Int) : LibraryItem()
+
+    /** A full-width label separating the root grid into Collections vs. Library --
+     *  only ever included alongside at least one item of that kind, never on its own. */
+    data class SectionHeader(val title: String) : LibraryItem()
 }

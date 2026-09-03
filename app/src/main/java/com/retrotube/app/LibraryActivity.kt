@@ -62,6 +62,18 @@ class LibraryActivity : AppCompatActivity() {
         }
     }
 
+    /** Which collection "Change poster" was tapped for -- GetContent's callback carries
+     *  only the picked image, so the target collection has to be remembered here. */
+    private var pendingPosterCollectionId: String? = null
+    private val pickCollectionPoster = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        val collectionId = pendingPosterCollectionId
+        pendingPosterCollectionId = null
+        if (uri != null && collectionId != null) {
+            collectionRepository.setPosterFromUri(collectionId, uri)
+            refreshList()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityLibraryBinding.inflate(layoutInflater)
@@ -84,6 +96,10 @@ class LibraryActivity : AppCompatActivity() {
                 refreshList()
             },
             onCollectionRemoveClick = { collection -> confirmRemoveCollection(collection) },
+            onCollectionEditPosterClick = { collection ->
+                pendingPosterCollectionId = collection.id
+                pickCollectionPoster.launch("image/*")
+            },
         )
         val gridLayoutManager = GridLayoutManager(this, POSTER_GRID_SPAN_COUNT)
         gridLayoutManager.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
@@ -217,11 +233,25 @@ class LibraryActivity : AppCompatActivity() {
                 } else {
                     listOf(LibraryItem.ContinueWatchingRail(continueWatching))
                 }
+
                 val collections: List<LibraryItem> = collectionRepository.getAll()
                     .sortedBy { it.name.lowercase() }
                     .map { LibraryItem.CollectionItem(it.id, it.name, it.videoUris.size) }
+                val filteredCollections = filterAndSort(collections)
+                val collectionsSection: List<LibraryItem> = if (filteredCollections.isEmpty()) {
+                    emptyList()
+                } else {
+                    listOf(LibraryItem.SectionHeader(getString(R.string.collections_section_title))) + filteredCollections
+                }
 
-                rail + filterAndSort(collections + libraryRepository.getRootDocuments())
+                val filteredFolders = filterAndSort(libraryRepository.getRootDocuments())
+                val librarySection: List<LibraryItem> = if (filteredFolders.isEmpty()) {
+                    emptyList()
+                } else {
+                    listOf(LibraryItem.SectionHeader(getString(R.string.library_section_title))) + filteredFolders
+                }
+
+                rail + collectionsSection + librarySection
             }
             else -> {
                 continueWatchingUris = emptySet()
@@ -253,6 +283,7 @@ class LibraryActivity : AppCompatActivity() {
                     is LibraryItem.VideoItem -> item.name
                     is LibraryItem.CollectionItem -> item.name
                     is LibraryItem.ContinueWatchingRail -> ""
+                    is LibraryItem.SectionHeader -> ""
                 }
                 name.contains(query, ignoreCase = true)
             }
@@ -265,6 +296,7 @@ class LibraryActivity : AppCompatActivity() {
                 is LibraryItem.VideoItem -> item.document.lastModified()
                 is LibraryItem.CollectionItem -> Long.MAX_VALUE
                 is LibraryItem.ContinueWatchingRail -> Long.MAX_VALUE
+                is LibraryItem.SectionHeader -> Long.MAX_VALUE
             }
         }
     }

@@ -6,9 +6,11 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.OvershootInterpolator
+import android.widget.TextView
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.retrotube.app.R
+import com.retrotube.app.collections.CollectionRepository
 import com.retrotube.app.databinding.ItemCollectionBinding
 import com.retrotube.app.databinding.ItemContinueWatchingRailBinding
 import com.retrotube.app.databinding.ItemFolderBinding
@@ -30,11 +32,13 @@ class LibraryListAdapter(
     private val onVideoMenuClick: (LibraryItem.VideoItem, View) -> Unit,
     private val onCollectionClick: (LibraryItem.CollectionItem) -> Unit,
     private val onCollectionRemoveClick: (LibraryItem.CollectionItem) -> Unit,
+    private val onCollectionEditPosterClick: (LibraryItem.CollectionItem) -> Unit,
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     private val progressRepository = PlaybackProgressRepository(context)
     private val settingsRepository = SettingsRepository(context)
     private val metadataRepository = VideoMetadataRepository(context)
+    private val collectionRepository = CollectionRepository(context)
 
     private var items: List<LibraryItem> = emptyList()
     private var isRootLevel: Boolean = false
@@ -61,15 +65,19 @@ class LibraryListAdapter(
     }
 
     /** Folders, videos and collections are single grid cells; the Continue Watching
-     *  rail spans the whole row, same as any other full-width shelf header. */
+     *  rail and section headers span the whole row. */
     fun spanSizeFor(position: Int, spanCount: Int): Int =
-        if (items[position] is LibraryItem.ContinueWatchingRail) spanCount else 1
+        when (items[position]) {
+            is LibraryItem.ContinueWatchingRail, is LibraryItem.SectionHeader -> spanCount
+            else -> 1
+        }
 
     override fun getItemViewType(position: Int): Int = when (items[position]) {
         is LibraryItem.FolderItem -> VIEW_TYPE_FOLDER
         is LibraryItem.VideoItem -> VIEW_TYPE_VIDEO
         is LibraryItem.ContinueWatchingRail -> VIEW_TYPE_CONTINUE_WATCHING_RAIL
         is LibraryItem.CollectionItem -> VIEW_TYPE_COLLECTION
+        is LibraryItem.SectionHeader -> VIEW_TYPE_SECTION_HEADER
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
@@ -79,6 +87,9 @@ class LibraryListAdapter(
             VIEW_TYPE_COLLECTION -> CollectionViewHolder(ItemCollectionBinding.inflate(inflater, parent, false))
             VIEW_TYPE_CONTINUE_WATCHING_RAIL -> RailViewHolder(
                 ItemContinueWatchingRailBinding.inflate(inflater, parent, false),
+            )
+            VIEW_TYPE_SECTION_HEADER -> SectionHeaderViewHolder(
+                inflater.inflate(R.layout.item_section_header, parent, false) as TextView,
             )
             else -> VideoViewHolder(ItemVideoBinding.inflate(inflater, parent, false))
         }
@@ -146,6 +157,19 @@ class LibraryListAdapter(
                 holder.binding.root.setOnClickListener { onCollectionClick(item) }
                 holder.binding.root.applySpringPress()
                 holder.binding.removeCollectionButton.setOnClickListener { onCollectionRemoveClick(item) }
+                holder.binding.editCollectionPosterButton.setOnClickListener { onCollectionEditPosterClick(item) }
+
+                val poster = collectionRepository.getPoster(item.id)
+                if (poster != null) {
+                    holder.binding.collectionPosterImage.visibility = View.VISIBLE
+                    holder.binding.collectionPosterImage.setImageBitmap(poster)
+                } else {
+                    holder.binding.collectionPosterImage.visibility = View.GONE
+                }
+            }
+            is LibraryItem.SectionHeader -> {
+                holder as SectionHeaderViewHolder
+                holder.textView.text = item.title
             }
         }
     }
@@ -178,6 +202,7 @@ class LibraryListAdapter(
     class FolderViewHolder(val binding: ItemFolderBinding) : RecyclerView.ViewHolder(binding.root)
     class VideoViewHolder(val binding: ItemVideoBinding) : RecyclerView.ViewHolder(binding.root)
     class CollectionViewHolder(val binding: ItemCollectionBinding) : RecyclerView.ViewHolder(binding.root)
+    class SectionHeaderViewHolder(val textView: TextView) : RecyclerView.ViewHolder(textView)
 
     inner class RailViewHolder(
         private val binding: ItemContinueWatchingRailBinding,
@@ -196,5 +221,6 @@ class LibraryListAdapter(
         private const val VIEW_TYPE_VIDEO = 1
         private const val VIEW_TYPE_CONTINUE_WATCHING_RAIL = 2
         private const val VIEW_TYPE_COLLECTION = 3
+        private const val VIEW_TYPE_SECTION_HEADER = 4
     }
 }
