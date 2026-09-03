@@ -1,7 +1,13 @@
 package com.retrotube.app
 
 import android.os.Bundle
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.style.ForegroundColorSpan
+import android.text.style.RelativeSizeSpan
+import android.widget.CompoundButton
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.media3.ui.AspectRatioFrameLayout
 import com.retrotube.app.databinding.ActivityMainBinding
 import com.retrotube.app.settings.SettingsRepository
@@ -37,6 +43,8 @@ class EffectSettingsActivity : AppCompatActivity() {
         mode = intent.getStringExtra(EXTRA_MODE) ?: MODE_GLOBAL
         videoUri = intent.getStringExtra(EXTRA_VIDEO_URI)
 
+        applyRowLabels()
+
         val initial = if (mode == MODE_OVERRIDE && videoUri != null) {
             settingsRepository.effectiveSettings(videoUri!!)
         } else {
@@ -62,6 +70,47 @@ class EffectSettingsActivity : AppCompatActivity() {
             }
             finish()
         }
+    }
+
+    /** Sets a two-line "title \n description" label on every row -- keeps the RadioGroup/
+     *  RadioButton structure (and this activity's ID-based read/write logic) completely
+     *  unchanged, just replaces each row's single-line label with a richer one. */
+    private fun applyRowLabels() {
+        binding.presetZfastCrt.setTitleAndDescription(R.string.title_zfast_crt, R.string.desc_zfast_crt)
+        binding.presetPhosphorMono.setTitleAndDescription(R.string.title_phosphor_mono, R.string.desc_phosphor_mono)
+        binding.presetDeconverge.setTitleAndDescription(R.string.title_deconverge, R.string.desc_deconverge)
+        binding.presetCrtEasymode.setTitleAndDescription(R.string.title_crt_easymode, R.string.desc_crt_easymode)
+        binding.presetVhs.setTitleAndDescription(R.string.title_vhs, R.string.desc_vhs)
+        binding.presetCrtGuestAdvanced.setTitleAndDescription(R.string.title_crt_guest_advanced, R.string.desc_crt_guest_advanced)
+        binding.presetNtsc.setTitleAndDescription(R.string.title_ntsc, R.string.desc_ntsc)
+        binding.presetNone.setTitleAndDescription(R.string.title_none, R.string.desc_none)
+
+        binding.curvatureSwitch.setTitleAndDescription(R.string.curvature_label, R.string.desc_curvature)
+
+        binding.downscaleNative.setTitleAndDescription(R.string.title_downscale_native, R.string.desc_downscale_native)
+        binding.downscale240.setTitleAndDescription(R.string.title_downscale_240, R.string.desc_downscale_240)
+        binding.downscale480.setTitleAndDescription(R.string.title_downscale_480, R.string.desc_downscale_480)
+        binding.downscale720.setTitleAndDescription(R.string.title_downscale_720, R.string.desc_downscale_720)
+
+        binding.aspectFit.setTitleAndDescription(R.string.title_aspect_fit, R.string.desc_aspect_fit)
+        binding.aspectStretch.setTitleAndDescription(R.string.title_aspect_stretch, R.string.desc_aspect_stretch)
+        binding.aspectCrop.setTitleAndDescription(R.string.title_aspect_crop, R.string.desc_aspect_crop)
+    }
+
+    private fun CompoundButton.setTitleAndDescription(titleRes: Int, descriptionRes: Int) {
+        val title = getString(titleRes)
+        val description = getString(descriptionRes)
+        val full = "$title\n$description"
+        val spannable = SpannableString(full)
+        val descStart = title.length + 1
+        spannable.setSpan(RelativeSizeSpan(0.8f), descStart, full.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        spannable.setSpan(
+            ForegroundColorSpan(ContextCompat.getColor(context, R.color.retro_text_muted)),
+            descStart,
+            full.length,
+            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
+        )
+        text = spannable
     }
 
     private fun applySettingsToUi(settings: VideoEffectSettings) {

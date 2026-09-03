@@ -24,4 +24,40 @@
     <string name="continue_watching">Continue Watching</string>
     <string name="effect_settings_for_video">Effect settings</string>
     <string name="remove_from_continue_watching">Remove from Continue Watching</string>
+
+    <!-- Row titles + descriptions for the effect settings screen. -->
+    <string name="title_zfast_crt">zfast-crt</string>
+    <string name="desc_zfast_crt">Cheap scanlines + vignette</string>
+    <string name="title_phosphor_mono">phosphor-mono</string>
+    <string name="desc_phosphor_mono">Green monochrome terminal look</string>
+    <string name="title_deconverge">deconverge</string>
+    <string name="desc_deconverge">Misaligned RGB, like a worn CRT</string>
+    <string name="title_crt_easymode">crt-easymode</string>
+    <string name="desc_crt_easymode">Scanlines + phosphor mask glow</string>
+    <string name="title_vhs">vhs</string>
+    <string name="desc_vhs">Tape wobble, chroma smear, tracking noise</string>
+    <string name="title_crt_guest_advanced">crt-guest-advanced</string>
+    <string name="desc_crt_guest_advanced">Mask + halation, multi-sample</string>
+    <string name="title_ntsc">ntsc</string>
+    <string name="desc_ntsc">Composite color bleed, old-broadcast look</string>
+    <string name="title_none">None</string>
+    <string name="desc_none">No effect applied</string>
+
+    <string name="desc_curvature">Warps the screen like a real CRT tube</string>
+
+    <string name="title_downscale_native">Native</string>
+    <string name="desc_downscale_native">No downscale, full source resolution</string>
+    <string name="title_downscale_240">240p</string>
+    <string name="desc_downscale_240">Forces chunky, authentic scanlines</string>
+    <string name="title_downscale_480">480p</string>
+    <string name="desc_downscale_480">Medium scanline density</string>
+    <string name="title_downscale_720">720p</string>
+    <string name="desc_downscale_720">Subtle scanlines</string>
+
+    <string name="title_aspect_fit">Fit</string>
+    <string name="desc_aspect_fit">Preserve aspect ratio, black bars if needed</string>
+    <string name="title_aspect_stretch">Stretch</string>
+    <string name="desc_aspect_stretch">Fill the screen, distorts the image</string>
+    <string name="title_aspect_crop">Crop</string>
+    <string name="desc_aspect_crop">Zoom to fill, crops the edges</string>
 </resources>

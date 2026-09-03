@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Applied app-wide via Theme.RetroTube so every settings row gets consistent,
+         touch-friendly M3-style sizing without editing each RadioButton individually. -->
+    <style name="Widget.RetroTube.RadioButton" parent="Widget.MaterialComponents.CompoundButton.RadioButton">
+        <item name="android:minHeight">56dp</item>
+        <item name="android:paddingVertical">10dp</item>
+        <item name="android:paddingStart">4dp</item>
+        <item name="android:gravity">center_vertical</item>
+    </style>
+
+    <style name="Widget.RetroTube.Switch" parent="Widget.MaterialComponents.CompoundButton.Switch">
+        <item name="android:minHeight">56dp</item>
+        <item name="android:paddingVertical">10dp</item>
+        <item name="android:paddingStart">4dp</item>
+        <item name="android:gravity">center_vertical</item>
+    </style>
+</resources>

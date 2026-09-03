@@ -7,7 +7,6 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:gravity="center_horizontal"
         android:padding="24dp">
 
         <TextView
@@ -20,7 +19,7 @@
 
         <RadioGroup
             android:id="@+id/presetGroup"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content">
 
             <TextView
@@ -34,22 +33,19 @@
 
             <RadioButton
                 android:id="@+id/presetZfastCrt"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="zfast-crt"
                 android:checked="true" />
 
             <RadioButton
                 android:id="@+id/presetPhosphorMono"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="phosphor-mono" />
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
 
             <RadioButton
                 android:id="@+id/presetDeconverge"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="deconverge" />
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
 
             <TextView
                 android:layout_width="wrap_content"
@@ -57,20 +53,18 @@
                 android:text="@string/tier_medium"
                 android:textStyle="bold"
                 android:textColor="@color/tier_medium"
-                android:layout_marginTop="16dp"
+                android:layout_marginTop="12dp"
                 android:layout_marginBottom="4dp" />
 
             <RadioButton
                 android:id="@+id/presetCrtEasymode"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="crt-easymode" />
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
 
             <RadioButton
                 android:id="@+id/presetVhs"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="vhs" />
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
 
             <TextView
                 android:layout_width="wrap_content"
@@ -78,43 +72,39 @@
                 android:text="@string/tier_high"
                 android:textStyle="bold"
                 android:textColor="@color/tier_high"
-                android:layout_marginTop="16dp"
+                android:layout_marginTop="12dp"
                 android:layout_marginBottom="4dp" />
 
             <RadioButton
                 android:id="@+id/presetCrtGuestAdvanced"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="crt-guest-advanced" />
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
 
             <RadioButton
                 android:id="@+id/presetNtsc"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="ntsc" />
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/tier_off"
                 android:textStyle="bold"
-                android:layout_marginTop="16dp"
+                android:layout_marginTop="12dp"
                 android:layout_marginBottom="4dp" />
 
             <RadioButton
                 android:id="@+id/presetNone"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="None" />
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
 
         </RadioGroup>
 
         <com.google.android.material.switchmaterial.SwitchMaterial
             android:id="@+id/curvatureSwitch"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:text="@string/curvature_label" />
+            android:layout_marginTop="20dp" />
 
         <TextView
             android:layout_width="wrap_content"
@@ -126,33 +116,29 @@
 
         <RadioGroup
             android:id="@+id/downscaleGroup"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content">
 
             <RadioButton
                 android:id="@+id/downscaleNative"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Native (no downscale)"
                 android:checked="true" />
 
             <RadioButton
                 android:id="@+id/downscale240"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="240p (chunky)" />
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
 
             <RadioButton
                 android:id="@+id/downscale480"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="480p (medium)" />
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
 
             <RadioButton
                 android:id="@+id/downscale720"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="720p (subtle)" />
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
 
         </RadioGroup>
 
@@ -166,40 +152,37 @@
 
         <RadioGroup
             android:id="@+id/aspectGroup"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content">
 
             <RadioButton
                 android:id="@+id/aspectFit"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Fit (black bars)"
                 android:checked="true" />
 
             <RadioButton
                 android:id="@+id/aspectStretch"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Stretch (fill, distorts)" />
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
 
             <RadioButton
                 android:id="@+id/aspectCrop"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Crop (fill, no bars)" />
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
 
         </RadioGroup>
 
         <Button
             android:id="@+id/saveButton"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
             android:text="@string/save_defaults" />
 
         <Button
             android:id="@+id/clearOverrideButton"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:text="@string/clear_override"

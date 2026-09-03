@@ -13,6 +13,8 @@
         <item name="android:windowBackground">@color/retro_background</item>
         <item name="android:textColorPrimary">@color/retro_text_primary</item>
         <item name="android:textColorSecondary">@color/retro_text_muted</item>
+        <item name="radioButtonStyle">@style/Widget.RetroTube.RadioButton</item>
+        <item name="switchStyle">@style/Widget.RetroTube.Switch</item>
     </style>
 
     <style name="Theme.RetroTube.Player" parent="Theme.MaterialComponents.NoActionBar">
