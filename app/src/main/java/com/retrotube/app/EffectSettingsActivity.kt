@@ -1,5 +1,6 @@
 package com.retrotube.app
 
+import android.graphics.drawable.BitmapDrawable
 import android.os.Bundle
 import android.text.SpannableString
 import android.text.Spanned
@@ -8,11 +9,13 @@ import android.text.style.RelativeSizeSpan
 import android.widget.CompoundButton
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.AspectRatioFrameLayout
 import com.retrotube.app.databinding.ActivityMainBinding
 import com.retrotube.app.settings.SettingsRepository
 import com.retrotube.app.settings.VideoEffectSettings
 import com.retrotube.app.shader.DownscaleTarget
+import com.retrotube.app.shader.PresetPreviewRenderer
 import com.retrotube.app.shader.ShaderPreset
 
 /**
@@ -20,6 +23,7 @@ import com.retrotube.app.shader.ShaderPreset
  * for one specific video (see [MODE_GLOBAL] / [MODE_OVERRIDE]). Reuses the
  * same preset/curvature/downscale/aspect controls either way.
  */
+@UnstableApi
 class EffectSettingsActivity : AppCompatActivity() {
 
     companion object {
@@ -44,6 +48,7 @@ class EffectSettingsActivity : AppCompatActivity() {
         videoUri = intent.getStringExtra(EXTRA_VIDEO_URI)
 
         applyRowLabels()
+        applyPresetThumbnails()
 
         val initial = if (mode == MODE_OVERRIDE && videoUri != null) {
             settingsRepository.effectiveSettings(videoUri!!)
@@ -95,6 +100,37 @@ class EffectSettingsActivity : AppCompatActivity() {
         binding.aspectFit.setTitleAndDescription(R.string.title_aspect_fit, R.string.desc_aspect_fit)
         binding.aspectStretch.setTitleAndDescription(R.string.title_aspect_stretch, R.string.desc_aspect_stretch)
         binding.aspectCrop.setTitleAndDescription(R.string.title_aspect_crop, R.string.desc_aspect_crop)
+    }
+
+    /** Renders each preset's real shader once against a synthetic test pattern (see
+     *  PresetPreviewRenderer) and sets it as the RadioButton's own leading compound
+     *  drawable -- so people can see what "vhs" vs "ntsc" actually look like instead of
+     *  having to guess from jargon names, without restructuring the RadioGroup (which
+     *  requires RadioButtons as direct children to keep its exclusive-selection working). */
+    private fun applyPresetThumbnails() {
+        val density = resources.displayMetrics.density
+        val widthPx = (48 * density).toInt()
+        val heightPx = (36 * density).toInt()
+        val paddingPx = (10 * density).toInt()
+
+        val rows = listOf(
+            binding.presetZfastCrt to ShaderPreset.ZFAST_CRT,
+            binding.presetPhosphorMono to ShaderPreset.PHOSPHOR_MONO,
+            binding.presetDeconverge to ShaderPreset.DECONVERGE,
+            binding.presetCrtEasymode to ShaderPreset.CRT_EASYMODE,
+            binding.presetVhs to ShaderPreset.VHS,
+            binding.presetCrtGuestAdvanced to ShaderPreset.CRT_GUEST_ADVANCED,
+            binding.presetNtsc to ShaderPreset.NTSC,
+            // NONE intentionally skipped -- a passthrough preview shows nothing useful.
+        )
+        for ((radioButton, preset) in rows) {
+            val bitmap = PresetPreviewRenderer.getOrRender(preset) ?: continue
+            val drawable = BitmapDrawable(resources, bitmap).apply {
+                setBounds(0, 0, widthPx, heightPx)
+            }
+            radioButton.setCompoundDrawables(drawable, null, null, null)
+            radioButton.compoundDrawablePadding = paddingPx
+        }
     }
 
     private fun CompoundButton.setTitleAndDescription(titleRes: Int, descriptionRes: Int) {
