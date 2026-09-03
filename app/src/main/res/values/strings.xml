@@ -60,4 +60,8 @@
     <string name="desc_aspect_stretch">Fill the screen, distorts the image</string>
     <string name="title_aspect_crop">Crop</string>
     <string name="desc_aspect_crop">Zoom to fill, crops the edges</string>
+
+    <string name="welcome_title">Welcome to RetroTube</string>
+    <string name="welcome_message">1. Tap "Add Folder" to point RetroTube at your videos.\n\n2. Tap any video to play it with real CRT shaders — no RetroArch setup needed.\n\n3. Tap the ⋮ next to any video to pick a different look just for that file, or use "Default Settings" to change the look for everything.</string>
+    <string name="welcome_got_it">Got it</string>
 </resources>

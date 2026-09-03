@@ -19,6 +19,10 @@ import com.retrotube.app.settings.SettingsRepository
 
 class LibraryActivity : AppCompatActivity() {
 
+    companion object {
+        private const val KEY_HAS_SEEN_WELCOME = "has_seen_welcome"
+    }
+
     private lateinit var binding: ActivityLibraryBinding
     private lateinit var libraryRepository: LibraryRepository
     private lateinit var settingsRepository: SettingsRepository
@@ -68,6 +72,8 @@ class LibraryActivity : AppCompatActivity() {
         }
         binding.backButton.setOnClickListener { navigateBack() }
 
+        maybeShowWelcomeDialog()
+
         onBackPressedDispatcher.addCallback(
             this,
             object : OnBackPressedCallback(true) {
@@ -86,6 +92,22 @@ class LibraryActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         refreshList()
+    }
+
+    /** Shown once, first launch only -- a real tooltip-pointer overlay system would be a
+     *  much bigger lift for the same "tell a first-time user what to do" value. */
+    private fun maybeShowWelcomeDialog() {
+        val prefs = getSharedPreferences("retrotube_onboarding", MODE_PRIVATE)
+        if (prefs.getBoolean(KEY_HAS_SEEN_WELCOME, false)) return
+
+        AlertDialog.Builder(this)
+            .setTitle(R.string.welcome_title)
+            .setMessage(R.string.welcome_message)
+            .setPositiveButton(R.string.welcome_got_it) { _, _ ->
+                prefs.edit().putBoolean(KEY_HAS_SEEN_WELCOME, true).apply()
+            }
+            .setCancelable(false)
+            .show()
     }
 
     private fun navigateBack() {
