@@ -111,6 +111,9 @@ class LibraryActivity : AppCompatActivity() {
         reorderTouchHelper.attachToRecyclerView(binding.libraryList)
 
         binding.addFolderButton.setOnClickListener { addFolder.launch(null) }
+        binding.networkSharesButton.setOnClickListener {
+            startActivity(Intent(this, NetworkSharesActivity::class.java))
+        }
         binding.settingsButton.setOnClickListener {
             startActivity(
                 Intent(this, EffectSettingsActivity::class.java).apply {
@@ -119,6 +122,14 @@ class LibraryActivity : AppCompatActivity() {
             )
         }
         binding.backButton.setOnClickListener { navigateBack() }
+        binding.editCollectionContentsButton.setOnClickListener {
+            val id = openCollectionId ?: return@setOnClickListener
+            startActivity(
+                Intent(this, CollectionEditActivity::class.java).apply {
+                    putExtra(CollectionEditActivity.EXTRA_COLLECTION_ID, id)
+                },
+            )
+        }
 
         binding.searchToggleButton.setOnClickListener { toggleSearch() }
 
@@ -270,6 +281,7 @@ class LibraryActivity : AppCompatActivity() {
         // Order inside a collection is manual (drag to reorder), so the name/date
         // sort toggle doesn't apply there.
         binding.sortButton.visibility = if (collectionId != null) View.GONE else View.VISIBLE
+        binding.editCollectionContentsButton.visibility = if (collectionId != null) View.VISIBLE else View.GONE
     }
 
     private fun filterAndSort(items: List<LibraryItem>): List<LibraryItem> {

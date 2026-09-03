@@ -50,6 +50,11 @@ class CollectionRepository(private val context: Context) {
         prefs.edit().putString(videosKey(collectionId), (current + videoUri).joinToString("|")).apply()
     }
 
+    fun removeVideo(collectionId: String, videoUri: String) {
+        val current = videoUris(collectionId)
+        setVideoOrder(collectionId, current.filterNot { it == videoUri })
+    }
+
     fun setVideoOrder(collectionId: String, videoUris: List<String>) {
         prefs.edit().putString(videosKey(collectionId), videoUris.joinToString("|")).apply()
     }

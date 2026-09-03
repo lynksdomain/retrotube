@@ -76,4 +76,9 @@ dependencies {
     implementation("androidx.media3:media3-ui:$media3Version")
     implementation("androidx.media3:media3-common:$media3Version")
     implementation("androidx.media3:media3-effect:$media3Version")
+
+    // SMB2/3 client for the "Add network share" library source.
+    implementation("eu.agno3.jcifs:jcifs-ng:2.1.10")
+    // Encrypts saved SMB credentials at rest, rather than plain SharedPreferences.
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
 }

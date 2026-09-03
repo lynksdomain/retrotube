@@ -101,7 +101,37 @@ class LibraryRepository(private val context: Context) {
         return folders.sortedBy { it.name.lowercase() } + videos.sortedBy { it.name.lowercase() }
     }
 
+    /**
+     * Walks every added root folder recursively, for screens that need to see the
+     * whole library as one flat list (picking videos for a collection) rather than
+     * browsing folder-by-folder. [LibraryVideoEntry.pathLabel] is the full folder
+     * path so a bare filename like "Episode 1" is still identifiable out of context.
+     */
+    fun getAllVideos(): List<LibraryVideoEntry> {
+        val result = mutableListOf<LibraryVideoEntry>()
+        for (root in getRootDocuments()) {
+            collectVideosRecursively(root.document, root.name, result)
+        }
+        return result
+    }
+
+    private fun collectVideosRecursively(folder: DocumentFile, pathLabel: String, out: MutableList<LibraryVideoEntry>) {
+        val children = runCatching { folder.listFiles() }.getOrDefault(emptyArray())
+        for (child in children) {
+            when {
+                child.isDirectory -> collectVideosRecursively(child, "$pathLabel/${child.name}", out)
+                child.isFile && (child.type?.startsWith("video/") == true) ->
+                    out.add(LibraryVideoEntry(child, child.name ?: "Untitled", pathLabel))
+            }
+        }
+    }
+
     companion object {
         private const val KEY_FOLDERS = "folders"
     }
 }
+
+/** One video found anywhere in the library tree, with its full folder path --
+ *  used by the flat "pick videos for a collection" screen, distinct from
+ *  [LibraryItem.VideoItem] which only carries its immediate parent's name. */
+data class LibraryVideoEntry(val document: DocumentFile, val name: String, val pathLabel: String)

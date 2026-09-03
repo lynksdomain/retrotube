@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Intentionally no storage/media permissions: the library is entirely
-         Storage Access Framework (SAF) based. Folders are picked via the
-         system's own document tree picker, which grants scoped access without
-         needing a broad runtime permission. -->
+    <!-- No storage/media permissions: the on-device library is entirely
+         Storage Access Framework (SAF) based, needing no broad runtime grant.
+         INTERNET is the one exception: it's used only to reach an SMB
+         share the user explicitly connects to on their own local network,
+         never anything beyond that. -->
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <application
         android:allowBackup="true"
@@ -29,6 +31,14 @@
 
         <activity
             android:name=".VideoMetadataActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".NetworkSharesActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".CollectionEditActivity"
             android:exported="false" />
 
         <activity
