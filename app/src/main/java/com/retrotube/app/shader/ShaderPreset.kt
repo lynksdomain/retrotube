@@ -27,10 +27,12 @@ enum class ShaderPreset(
     ZFAST_CRT("zfast-crt", CostTier.LOW, usesResolutionX = false, usesResolutionY = true, usesTime = false),
     PHOSPHOR_MONO("phosphor-mono", CostTier.LOW, usesResolutionX = false, usesResolutionY = false, usesTime = false),
     DECONVERGE("deconverge", CostTier.LOW, usesResolutionX = true, usesResolutionY = false, usesTime = false),
+    INTERLACE_ROLL("interlace-roll", CostTier.LOW, usesResolutionX = false, usesResolutionY = true, usesTime = true),
 
     // --- Medium cost: a few extra samples per pixel, or per-frame noise ---
     CRT_EASYMODE("crt-easymode", CostTier.MEDIUM, usesResolutionX = true, usesResolutionY = true, usesTime = false),
     VHS("vhs", CostTier.MEDIUM, usesResolutionX = true, usesResolutionY = false, usesTime = true),
+    VHS_REC("vhs-rec", CostTier.MEDIUM, usesResolutionX = true, usesResolutionY = false, usesTime = true),
 
     // --- High cost: multi-sample blends, wide taps ---
     CRT_GUEST_ADVANCED("crt-guest-advanced", CostTier.HIGH, usesResolutionX = true, usesResolutionY = true, usesTime = false),
@@ -83,6 +85,26 @@ enum class ShaderPreset(
                 float vignette = 1.0 - dot(centered, centered) * 0.35;
 
                 return vec4(color.rgb * scanlineDarken * vignette, color.a);
+            }
+        """
+
+        // interlace-roll: alternating-field flicker (real interlaced CRTs draw odd/even
+        // scanlines on alternating frames) plus a slow dark band drifting down the frame,
+        // like an old set's unstable vertical hold. Cheap: no extra texture samples.
+        private const val INTERLACE_ROLL_EFFECT = """
+            vec4 applyEffect(vec2 uv, vec2 rawUv) {
+                vec4 color = texture2D(uTexSampler, uv);
+
+                float line = floor(rawUv.y * uResolutionY);
+                float fieldFlip = mod(floor(uTime * 25.0), 2.0);
+                float fieldParity = mod(line + fieldFlip, 2.0);
+                float interlaceDarken = mix(1.0, 0.7, fieldParity);
+
+                float rollPos = fract(rawUv.y - uTime * 0.08);
+                float band = smoothstep(0.0, 0.06, rollPos) * smoothstep(0.18, 0.06, rollPos);
+                float rollDarken = 1.0 - band * 0.35;
+
+                return vec4(color.rgb * interlaceDarken * rollDarken, color.a);
             }
         """
 
@@ -160,6 +182,42 @@ enum class ShaderPreset(
             }
         """
 
+        // vhs-rec: same tape wobble/smear/tracking-noise as vhs, plus a blinking red
+        // "REC" tally dot in the corner -- the analog-horror crowd treats a REC/timestamp
+        // overlay as core to the mood, not a gimmick. Real digit rendering would need a
+        // bitmap font atlas (a much bigger lift), so this is a procedural blinking dot
+        // rather than actual timestamp text.
+        private const val VHS_REC_EFFECT = """
+            float randRec(vec2 co) {
+                return fract(sin(dot(co.xy, vec2(12.9898, 78.233))) * 43758.5453);
+            }
+
+            vec4 applyEffect(vec2 uv, vec2 rawUv) {
+                vec2 wobbledUv = uv;
+                float wobble = sin(rawUv.y * 40.0 + uTime * 6.0) * 0.0015;
+                wobbledUv.x += wobble;
+
+                float smear = 3.0 / uResolutionX;
+                float r = texture2D(uTexSampler, wobbledUv + vec2(smear, 0.0)).r;
+                float g = texture2D(uTexSampler, wobbledUv).g;
+                float b = texture2D(uTexSampler, wobbledUv - vec2(smear, 0.0)).b;
+
+                float noiseLine = step(0.996, randRec(vec2(rawUv.y * 200.0, floor(uTime * 10.0))));
+                vec3 color = vec3(r, g, b) + noiseLine * 0.4;
+
+                float scan = sin(rawUv.y * 500.0) * 0.04;
+                color -= scan;
+
+                vec2 dotCenter = vec2(0.92, 0.08);
+                float dist = length(rawUv - dotCenter);
+                float blink = step(0.5, fract(uTime * 1.2));
+                float dot = smoothstep(0.022, 0.017, dist) * blink;
+                color = mix(color, vec3(1.0, 0.15, 0.15), dot);
+
+                return vec4(color, 1.0);
+            }
+        """
+
         // crt-guest-advanced: mask + halation, multi-sample. Curvature lives in the
         // separate warp toggle now, not baked in here.
         private const val CRT_GUEST_ADVANCED_EFFECT = """
@@ -212,10 +270,12 @@ enum class ShaderPreset(
         fun effectFunctionFor(preset: ShaderPreset): String = when (preset) {
             NONE -> NONE_EFFECT
             ZFAST_CRT -> ZFAST_CRT_EFFECT
+            INTERLACE_ROLL -> INTERLACE_ROLL_EFFECT
             PHOSPHOR_MONO -> PHOSPHOR_MONO_EFFECT
             DECONVERGE -> DECONVERGE_EFFECT
             CRT_EASYMODE -> CRT_EASYMODE_EFFECT
             VHS -> VHS_EFFECT
+            VHS_REC -> VHS_REC_EFFECT
             CRT_GUEST_ADVANCED -> CRT_GUEST_ADVANCED_EFFECT
             NTSC -> NTSC_EFFECT
         }

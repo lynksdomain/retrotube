@@ -32,10 +32,14 @@
     <string name="desc_phosphor_mono">Green monochrome terminal look</string>
     <string name="title_deconverge">deconverge</string>
     <string name="desc_deconverge">Misaligned RGB, like a worn CRT</string>
+    <string name="title_interlace_roll">interlace-roll</string>
+    <string name="desc_interlace_roll">Field flicker + a drifting vertical-hold roll</string>
     <string name="title_crt_easymode">crt-easymode</string>
     <string name="desc_crt_easymode">Scanlines + phosphor mask glow</string>
     <string name="title_vhs">vhs</string>
     <string name="desc_vhs">Tape wobble, chroma smear, tracking noise</string>
+    <string name="title_vhs_rec">vhs-rec</string>
+    <string name="desc_vhs_rec">vhs, plus a blinking REC tally light</string>
     <string name="title_crt_guest_advanced">crt-guest-advanced</string>
     <string name="desc_crt_guest_advanced">Mask + halation, multi-sample</string>
     <string name="title_ntsc">ntsc</string>

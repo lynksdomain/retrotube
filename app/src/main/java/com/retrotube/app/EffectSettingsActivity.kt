@@ -84,8 +84,10 @@ class EffectSettingsActivity : AppCompatActivity() {
         binding.presetZfastCrt.setTitleAndDescription(R.string.title_zfast_crt, R.string.desc_zfast_crt)
         binding.presetPhosphorMono.setTitleAndDescription(R.string.title_phosphor_mono, R.string.desc_phosphor_mono)
         binding.presetDeconverge.setTitleAndDescription(R.string.title_deconverge, R.string.desc_deconverge)
+        binding.presetInterlaceRoll.setTitleAndDescription(R.string.title_interlace_roll, R.string.desc_interlace_roll)
         binding.presetCrtEasymode.setTitleAndDescription(R.string.title_crt_easymode, R.string.desc_crt_easymode)
         binding.presetVhs.setTitleAndDescription(R.string.title_vhs, R.string.desc_vhs)
+        binding.presetVhsRec.setTitleAndDescription(R.string.title_vhs_rec, R.string.desc_vhs_rec)
         binding.presetCrtGuestAdvanced.setTitleAndDescription(R.string.title_crt_guest_advanced, R.string.desc_crt_guest_advanced)
         binding.presetNtsc.setTitleAndDescription(R.string.title_ntsc, R.string.desc_ntsc)
         binding.presetNone.setTitleAndDescription(R.string.title_none, R.string.desc_none)
@@ -117,8 +119,10 @@ class EffectSettingsActivity : AppCompatActivity() {
             binding.presetZfastCrt to ShaderPreset.ZFAST_CRT,
             binding.presetPhosphorMono to ShaderPreset.PHOSPHOR_MONO,
             binding.presetDeconverge to ShaderPreset.DECONVERGE,
+            binding.presetInterlaceRoll to ShaderPreset.INTERLACE_ROLL,
             binding.presetCrtEasymode to ShaderPreset.CRT_EASYMODE,
             binding.presetVhs to ShaderPreset.VHS,
+            binding.presetVhsRec to ShaderPreset.VHS_REC,
             binding.presetCrtGuestAdvanced to ShaderPreset.CRT_GUEST_ADVANCED,
             binding.presetNtsc to ShaderPreset.NTSC,
             // NONE intentionally skipped -- a passthrough preview shows nothing useful.
@@ -154,8 +158,10 @@ class EffectSettingsActivity : AppCompatActivity() {
             ShaderPreset.ZFAST_CRT -> binding.presetZfastCrt.id
             ShaderPreset.PHOSPHOR_MONO -> binding.presetPhosphorMono.id
             ShaderPreset.DECONVERGE -> binding.presetDeconverge.id
+            ShaderPreset.INTERLACE_ROLL -> binding.presetInterlaceRoll.id
             ShaderPreset.CRT_EASYMODE -> binding.presetCrtEasymode.id
             ShaderPreset.VHS -> binding.presetVhs.id
+            ShaderPreset.VHS_REC -> binding.presetVhsRec.id
             ShaderPreset.CRT_GUEST_ADVANCED -> binding.presetCrtGuestAdvanced.id
             ShaderPreset.NTSC -> binding.presetNtsc.id
             ShaderPreset.NONE -> binding.presetNone.id
@@ -185,8 +191,10 @@ class EffectSettingsActivity : AppCompatActivity() {
             binding.presetZfastCrt.id -> ShaderPreset.ZFAST_CRT
             binding.presetPhosphorMono.id -> ShaderPreset.PHOSPHOR_MONO
             binding.presetDeconverge.id -> ShaderPreset.DECONVERGE
+            binding.presetInterlaceRoll.id -> ShaderPreset.INTERLACE_ROLL
             binding.presetCrtEasymode.id -> ShaderPreset.CRT_EASYMODE
             binding.presetVhs.id -> ShaderPreset.VHS
+            binding.presetVhsRec.id -> ShaderPreset.VHS_REC
             binding.presetCrtGuestAdvanced.id -> ShaderPreset.CRT_GUEST_ADVANCED
             binding.presetNtsc.id -> ShaderPreset.NTSC
             else -> ShaderPreset.NONE
