@@ -2,8 +2,10 @@ package com.retrotube.app.library
 
 import android.content.Context
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.animation.OvershootInterpolator
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.retrotube.app.R
@@ -17,6 +19,7 @@ class LibraryListAdapter(
     private val onFolderRemoveClick: (LibraryItem.FolderItem) -> Unit,
     private val onVideoClick: (LibraryItem.VideoItem) -> Unit,
     private val onVideoMenuClick: (LibraryItem.VideoItem, View) -> Unit,
+    private val onSeeAllClick: () -> Unit,
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     private val progressRepository = PlaybackProgressRepository(context)
@@ -34,6 +37,7 @@ class LibraryListAdapter(
         is LibraryItem.FolderItem -> VIEW_TYPE_FOLDER
         is LibraryItem.VideoItem -> VIEW_TYPE_VIDEO
         is LibraryItem.SectionHeader -> VIEW_TYPE_HEADER
+        is LibraryItem.SeeAllRow -> VIEW_TYPE_SEE_ALL
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
@@ -41,6 +45,9 @@ class LibraryListAdapter(
         return when (viewType) {
             VIEW_TYPE_FOLDER -> FolderViewHolder(ItemFolderBinding.inflate(inflater, parent, false))
             VIEW_TYPE_VIDEO -> VideoViewHolder(ItemVideoBinding.inflate(inflater, parent, false))
+            VIEW_TYPE_SEE_ALL -> HeaderViewHolder(
+                inflater.inflate(R.layout.item_see_all, parent, false) as TextView,
+            )
             else -> HeaderViewHolder(inflater.inflate(R.layout.item_section_header, parent, false) as TextView)
         }
     }
@@ -64,6 +71,7 @@ class LibraryListAdapter(
                 holder.binding.videoName.text = item.name
                 ThumbnailLoader.load(context, item.document.uri, holder.binding.videoThumbnail)
                 holder.binding.root.setOnClickListener { onVideoClick(item) }
+                holder.binding.root.applySpringPress()
                 holder.binding.videoMenuButton.setOnClickListener {
                     onVideoMenuClick(item, holder.binding.videoMenuButton)
                 }
@@ -82,11 +90,40 @@ class LibraryListAdapter(
             is LibraryItem.SectionHeader -> {
                 holder as HeaderViewHolder
                 holder.textView.text = item.title
+                holder.textView.setOnClickListener(null)
+            }
+            is LibraryItem.SeeAllRow -> {
+                holder as HeaderViewHolder
+                holder.textView.text = context.getString(R.string.see_all_count, item.remainingCount)
+                holder.textView.setOnClickListener { onSeeAllClick() }
             }
         }
     }
 
     override fun getItemCount(): Int = items.size
+
+    /** Scales down slightly on press, springs back with overshoot on release --
+     *  the "feels good, not just looks good" detail Apple TV/Music-style focus
+     *  animations are built on, instead of the flat default Android ripple alone. */
+    @Suppress("ClickableViewAccessibility")
+    private fun View.applySpringPress() {
+        setOnTouchListener { view, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    view.animate().scaleX(0.96f).scaleY(0.96f).setDuration(100).start()
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    view.animate()
+                        .scaleX(1f)
+                        .scaleY(1f)
+                        .setDuration(220)
+                        .setInterpolator(OvershootInterpolator())
+                        .start()
+                }
+            }
+            false // don't consume -- the click listener still needs the event
+        }
+    }
 
     class FolderViewHolder(val binding: ItemFolderBinding) : RecyclerView.ViewHolder(binding.root)
     class VideoViewHolder(val binding: ItemVideoBinding) : RecyclerView.ViewHolder(binding.root)
@@ -96,5 +133,6 @@ class LibraryListAdapter(
         private const val VIEW_TYPE_FOLDER = 0
         private const val VIEW_TYPE_VIDEO = 1
         private const val VIEW_TYPE_HEADER = 2
+        private const val VIEW_TYPE_SEE_ALL = 3
     }
 }

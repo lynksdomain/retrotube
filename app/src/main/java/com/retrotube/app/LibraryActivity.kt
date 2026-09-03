@@ -2,6 +2,8 @@ package com.retrotube.app
 
 import android.content.Intent
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.View
 import android.widget.PopupMenu
 import androidx.activity.OnBackPressedCallback
@@ -21,6 +23,7 @@ class LibraryActivity : AppCompatActivity() {
 
     companion object {
         private const val KEY_HAS_SEEN_WELCOME = "has_seen_welcome"
+        private const val CONTINUE_WATCHING_CAP = 5
     }
 
     private lateinit var binding: ActivityLibraryBinding
@@ -35,6 +38,11 @@ class LibraryActivity : AppCompatActivity() {
     /** URIs currently shown in the Continue Watching row, so the "⋮" menu knows whether
      *  to offer "Remove from Continue Watching" or just go straight to settings. */
     private var continueWatchingUris: Set<String> = emptySet()
+    private var showAllContinueWatching = false
+
+    private enum class SortMode { NAME, DATE }
+    private var searchQuery: String = ""
+    private var sortMode: SortMode = SortMode.NAME
 
     private val addFolder = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         if (uri != null) {
@@ -58,6 +66,7 @@ class LibraryActivity : AppCompatActivity() {
             onFolderRemoveClick = { folder -> confirmRemoveFolder(folder) },
             onVideoClick = { video -> launchPlayer(video) },
             onVideoMenuClick = { video, anchor -> showVideoMenu(video, anchor) },
+            onSeeAllClick = { showAllContinueWatching = true; refreshList() },
         )
         binding.libraryList.layoutManager = LinearLayoutManager(this)
         binding.libraryList.adapter = adapter
@@ -71,6 +80,20 @@ class LibraryActivity : AppCompatActivity() {
             )
         }
         binding.backButton.setOnClickListener { navigateBack() }
+
+        binding.searchField.addTextChangedListener(object : TextWatcher {
+            override fun afterTextChanged(s: Editable?) {
+                searchQuery = s?.toString().orEmpty()
+                refreshList()
+            }
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
+        })
+        binding.sortButton.setOnClickListener {
+            sortMode = if (sortMode == SortMode.NAME) SortMode.DATE else SortMode.NAME
+            binding.sortButton.setText(if (sortMode == SortMode.NAME) R.string.sort_name else R.string.sort_date)
+            refreshList()
+        }
 
         maybeShowWelcomeDialog()
 
@@ -124,20 +147,54 @@ class LibraryActivity : AppCompatActivity() {
             )
             continueWatchingUris = continueWatching.map { it.document.uri.toString() }.toSet()
             val continueWatchingSection = if (continueWatching.isNotEmpty()) {
-                listOf(LibraryItem.SectionHeader(getString(R.string.continue_watching))) + continueWatching
+                val visible = if (showAllContinueWatching) continueWatching else continueWatching.take(CONTINUE_WATCHING_CAP)
+                val remaining = continueWatching.size - visible.size
+                buildList {
+                    add(LibraryItem.SectionHeader(getString(R.string.continue_watching)))
+                    addAll(visible)
+                    if (remaining > 0) add(LibraryItem.SeeAllRow(remaining))
+                }
             } else {
                 emptyList()
             }
-            continueWatchingSection + libraryRepository.getRootDocuments()
+            continueWatchingSection + filterAndSort(libraryRepository.getRootDocuments())
         } else {
             continueWatchingUris = emptySet()
-            libraryRepository.listChildren(folderStack.last())
+            filterAndSort(libraryRepository.listChildren(folderStack.last()))
         }
         adapter.submitList(items, isRootLevel = folderStack.isEmpty())
         binding.emptyLibraryText.visibility = if (items.isEmpty()) android.view.View.VISIBLE else android.view.View.GONE
 
         binding.breadcrumbRow.visibility = if (folderStack.isEmpty()) android.view.View.GONE else android.view.View.VISIBLE
         binding.breadcrumbText.text = folderStack.joinToString(" / ") { it.name ?: "?" }
+    }
+
+    /** Applies the search box + sort toggle to a folder/video listing. Continue Watching
+     *  is deliberately excluded -- it's already curated by recency, filtering/resorting it
+     *  the same way wouldn't make sense. */
+    private fun filterAndSort(items: List<LibraryItem>): List<LibraryItem> {
+        val query = searchQuery.trim()
+        val filtered = if (query.isEmpty()) {
+            items
+        } else {
+            items.filter { item ->
+                val name = when (item) {
+                    is LibraryItem.FolderItem -> item.name
+                    is LibraryItem.VideoItem -> item.name
+                    else -> ""
+                }
+                name.contains(query, ignoreCase = true)
+            }
+        }
+        if (sortMode == SortMode.NAME) return filtered
+
+        return filtered.sortedByDescending { item ->
+            when (item) {
+                is LibraryItem.FolderItem -> item.document.lastModified()
+                is LibraryItem.VideoItem -> item.document.lastModified()
+                else -> 0L
+            }
+        }
     }
 
     private fun launchPlayer(video: LibraryItem.VideoItem) {
