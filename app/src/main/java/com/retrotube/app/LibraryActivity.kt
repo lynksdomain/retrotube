@@ -1,10 +1,12 @@
 package com.retrotube.app
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
+import android.view.inputmethod.InputMethodManager
 import android.widget.PopupMenu
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AlertDialog
@@ -91,6 +93,8 @@ class LibraryActivity : AppCompatActivity() {
         }
         binding.backButton.setOnClickListener { navigateBack() }
 
+        binding.searchToggleButton.setOnClickListener { toggleSearch() }
+
         binding.searchField.addTextChangedListener(object : TextWatcher {
             override fun afterTextChanged(s: Editable?) {
                 searchQuery = s?.toString().orEmpty()
@@ -141,6 +145,25 @@ class LibraryActivity : AppCompatActivity() {
             }
             .setCancelable(false)
             .show()
+    }
+
+    /** Search is hidden until asked for -- opening it focuses the field and raises the
+     *  keyboard; closing it clears the query so the grid returns to its full contents
+     *  rather than leaving an invisible filter applied. */
+    private fun toggleSearch() {
+        val opening = binding.searchRow.visibility != View.VISIBLE
+        if (opening) {
+            binding.searchRow.visibility = View.VISIBLE
+            binding.searchField.requestFocus()
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.showSoftInput(binding.searchField, InputMethodManager.SHOW_IMPLICIT)
+        } else {
+            binding.searchField.text?.clear()
+            binding.searchField.clearFocus()
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.hideSoftInputFromWindow(binding.searchField.windowToken, 0)
+            binding.searchRow.visibility = View.GONE
+        }
     }
 
     private fun navigateBack() {
