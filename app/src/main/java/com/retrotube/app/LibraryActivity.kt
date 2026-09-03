@@ -2,6 +2,8 @@ package com.retrotube.app
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.View
+import android.widget.PopupMenu
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AlertDialog
 import androidx.activity.result.contract.ActivityResultContracts
@@ -26,6 +28,10 @@ class LibraryActivity : AppCompatActivity() {
     /** Empty = showing the top-level list of added root folders. */
     private val folderStack = mutableListOf<DocumentFile>()
 
+    /** URIs currently shown in the Continue Watching row, so the "⋮" menu knows whether
+     *  to offer "Remove from Continue Watching" or just go straight to settings. */
+    private var continueWatchingUris: Set<String> = emptySet()
+
     private val addFolder = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         if (uri != null) {
             libraryRepository.addFolder(uri)
@@ -47,7 +53,7 @@ class LibraryActivity : AppCompatActivity() {
             onFolderClick = { folder -> folderStack.add(folder.document); refreshList() },
             onFolderRemoveClick = { folder -> confirmRemoveFolder(folder) },
             onVideoClick = { video -> launchPlayer(video) },
-            onVideoMenuClick = { video -> openOverrideSettings(video) },
+            onVideoMenuClick = { video, anchor -> showVideoMenu(video, anchor) },
         )
         binding.libraryList.layoutManager = LinearLayoutManager(this)
         binding.libraryList.adapter = adapter
@@ -94,6 +100,7 @@ class LibraryActivity : AppCompatActivity() {
             val continueWatching = libraryRepository.resolveVideoItems(
                 progressRepository.getAllProgress().map { it.first },
             )
+            continueWatchingUris = continueWatching.map { it.document.uri.toString() }.toSet()
             val continueWatchingSection = if (continueWatching.isNotEmpty()) {
                 listOf(LibraryItem.SectionHeader(getString(R.string.continue_watching))) + continueWatching
             } else {
@@ -101,6 +108,7 @@ class LibraryActivity : AppCompatActivity() {
             }
             continueWatchingSection + libraryRepository.getRootDocuments()
         } else {
+            continueWatchingUris = emptySet()
             libraryRepository.listChildren(folderStack.last())
         }
         adapter.submitList(items, isRootLevel = folderStack.isEmpty())
@@ -129,6 +137,29 @@ class LibraryActivity : AppCompatActivity() {
             }
             .setNegativeButton(android.R.string.cancel, null)
             .show()
+    }
+
+    private fun showVideoMenu(video: LibraryItem.VideoItem, anchor: View) {
+        val uriString = video.document.uri.toString()
+        if (uriString !in continueWatchingUris) {
+            openOverrideSettings(video)
+            return
+        }
+
+        PopupMenu(this, anchor).apply {
+            menu.add(getString(R.string.effect_settings_for_video))
+            menu.add(getString(R.string.remove_from_continue_watching))
+            setOnMenuItemClickListener { menuItem ->
+                when (menuItem.title) {
+                    getString(R.string.remove_from_continue_watching) -> {
+                        progressRepository.hideFromContinueWatching(uriString)
+                        refreshList()
+                    }
+                    else -> openOverrideSettings(video)
+                }
+                true
+            }
+        }.show()
     }
 
     private fun openOverrideSettings(video: LibraryItem.VideoItem) {

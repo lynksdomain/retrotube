@@ -22,4 +22,6 @@
     <string name="compare_button">SHOW RAW</string>
     <string name="compare_button_active">SHOWING RAW</string>
     <string name="continue_watching">Continue Watching</string>
+    <string name="effect_settings_for_video">Effect settings</string>
+    <string name="remove_from_continue_watching">Remove from Continue Watching</string>
 </resources>

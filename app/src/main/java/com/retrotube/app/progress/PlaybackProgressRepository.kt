@@ -12,17 +12,26 @@ class PlaybackProgressRepository(context: Context) {
 
     private val prefs = context.getSharedPreferences("retrotube_progress", Context.MODE_PRIVATE)
 
-    data class Progress(val positionMs: Long, val durationMs: Long, val updatedAtMs: Long) {
+    data class Progress(
+        val positionMs: Long,
+        val durationMs: Long,
+        val updatedAtMs: Long,
+        val hiddenFromContinueWatching: Boolean,
+    ) {
         val fraction: Float get() = if (durationMs > 0) positionMs.toFloat() / durationMs else 0f
     }
 
+    /** Real saved position regardless of [Progress.hiddenFromContinueWatching] -- hiding a
+     *  video only affects the curated "Continue Watching" row, resuming still works
+     *  everywhere else. */
     fun getProgress(videoUri: String): Progress? = parse(prefs.getString(videoUri, null))
 
-    /** All in-progress videos, most recently watched first -- feeds "Continue Watching". */
+    /** In-progress videos not hidden from the row, most recently watched first. */
     fun getAllProgress(): List<Pair<String, Progress>> =
         prefs.all.mapNotNull { (uri, raw) ->
             parse(raw as? String)?.let { uri to it }
-        }.sortedByDescending { it.second.updatedAtMs }
+        }.filterNot { it.second.hiddenFromContinueWatching }
+            .sortedByDescending { it.second.updatedAtMs }
 
     fun saveProgress(videoUri: String, positionMs: Long, durationMs: Long) {
         if (durationMs <= 0) return
@@ -30,21 +39,38 @@ class PlaybackProgressRepository(context: Context) {
             clearProgress(videoUri)
             return
         }
-        prefs.edit().putString(videoUri, "$positionMs|$durationMs|${System.currentTimeMillis()}").apply()
+        // Actively watching again un-hides it -- hiding is a one-time dismissal, not a
+        // permanent block.
+        write(videoUri, Progress(positionMs, durationMs, System.currentTimeMillis(), hiddenFromContinueWatching = false))
+    }
+
+    /** Removes [videoUri] from the Continue Watching row without touching its saved
+     *  position -- opening it directly still resumes where it left off. */
+    fun hideFromContinueWatching(videoUri: String) {
+        val current = getProgress(videoUri) ?: return
+        write(videoUri, current.copy(hiddenFromContinueWatching = true))
     }
 
     fun clearProgress(videoUri: String) {
         prefs.edit().remove(videoUri).apply()
     }
 
+    private fun write(videoUri: String, progress: Progress) {
+        val hidden = if (progress.hiddenFromContinueWatching) "1" else "0"
+        prefs.edit()
+            .putString(videoUri, "${progress.positionMs}|${progress.durationMs}|${progress.updatedAtMs}|$hidden")
+            .apply()
+    }
+
     private fun parse(raw: String?): Progress? {
         if (raw == null) return null
         val parts = raw.split("|")
-        if (parts.size != 3) return null
+        if (parts.size != 4) return null
         val position = parts[0].toLongOrNull() ?: return null
         val duration = parts[1].toLongOrNull() ?: return null
         val updatedAt = parts[2].toLongOrNull() ?: return null
-        return Progress(position, duration, updatedAt)
+        val hidden = parts[3] == "1"
+        return Progress(position, duration, updatedAt, hidden)
     }
 
     companion object {

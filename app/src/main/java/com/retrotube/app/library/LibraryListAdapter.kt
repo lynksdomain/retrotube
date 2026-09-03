@@ -2,6 +2,7 @@ package com.retrotube.app.library
 
 import android.content.Context
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
@@ -15,7 +16,7 @@ class LibraryListAdapter(
     private val onFolderClick: (LibraryItem.FolderItem) -> Unit,
     private val onFolderRemoveClick: (LibraryItem.FolderItem) -> Unit,
     private val onVideoClick: (LibraryItem.VideoItem) -> Unit,
-    private val onVideoMenuClick: (LibraryItem.VideoItem) -> Unit,
+    private val onVideoMenuClick: (LibraryItem.VideoItem, View) -> Unit,
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     private val progressRepository = PlaybackProgressRepository(context)
@@ -63,7 +64,9 @@ class LibraryListAdapter(
                 holder.binding.videoName.text = item.name
                 ThumbnailLoader.load(context, item.document.uri, holder.binding.videoThumbnail)
                 holder.binding.root.setOnClickListener { onVideoClick(item) }
-                holder.binding.videoMenuButton.setOnClickListener { onVideoMenuClick(item) }
+                holder.binding.videoMenuButton.setOnClickListener {
+                    onVideoMenuClick(item, holder.binding.videoMenuButton)
+                }
 
                 val progress = progressRepository.getProgress(item.document.uri.toString())
                 if (progress != null) {
