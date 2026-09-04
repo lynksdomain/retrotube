@@ -3,9 +3,15 @@ package com.retrotube.app.tv
 import android.content.Context
 import android.net.Uri
 import com.retrotube.app.collections.CollectionRepository
+import com.retrotube.app.library.LibraryItem
 import com.retrotube.app.library.LibraryRepository
 import com.retrotube.app.metadata.VideoMetadataRepository
+import com.retrotube.app.network.NetworkShare
+import com.retrotube.app.network.NetworkShareRepository
+import com.retrotube.app.network.SmbBrowser
+import com.retrotube.app.network.SmbClient
 import com.retrotube.app.progress.PlaybackProgressRepository
+import jcifs.CIFSContext
 
 /**
  * Builds TV Mode's channel list fresh every time -- there's no channel-editing
@@ -16,11 +22,14 @@ import com.retrotube.app.progress.PlaybackProgressRepository
  * spoiler for a show you're mid-way through).
  *
  * Shows and the Movies channel are drawn from the local (SAF) library only --
- * building the same view over an SMB share would mean recursively crawling
- * its whole folder tree on every TV Mode launch, which is real, repeated
- * network cost for something that's just background flavor. Collections
- * (and therefore the Wildcard pool) already include whatever's in them
- * regardless of scheme, so SMB content reaches TV Mode by way of a collection.
+ * mirroring that same per-folder breakdown for SMB would mean a recursive
+ * network crawl per folder, every TV Mode launch. Instead, all SMB content
+ * across every connected share is pooled into a single "Network" channel
+ * (see [buildNetworkChannel]) -- one crawl, one channel, and a caller-side
+ * timeout keeps a slow or unreachable share from blocking TV Mode itself
+ * rather than just costing that one channel. Collections (and therefore the
+ * Wildcard pool) already include whatever's in them regardless of scheme, so
+ * SMB content also reaches TV Mode by way of a collection, same as before.
  */
 class TvChannelRepository(
     context: Context,
@@ -95,6 +104,43 @@ class TvChannelRepository(
         return (showChannels + collectionChannels + moviesChannel + wildcardChannel)
             .filter { it.videos.isNotEmpty() }
             .mapIndexed { index, channel -> channel.copy(number = index + 1) }
+    }
+
+    /** Pools every video across every connected SMB share into one channel --
+     *  real network I/O (a recursive directory listing per share), so this must
+     *  be called off the main thread, and the caller is expected to wrap it in
+     *  its own timeout: a slow or unreachable share should only cost this one
+     *  channel, not block TV Mode from launching at all. Returns null if there
+     *  are no shares or none of them have any videos. */
+    fun buildNetworkChannel(shareRepository: NetworkShareRepository): TvChannel? {
+        val videos = shareRepository.getAll().flatMap { share ->
+            // One context (and so one SMB session) reused for every folder in this
+            // share's tree -- a fresh one per call re-negotiates the session from
+            // scratch, which dominates the cost of listing a deep tree one call at
+            // a time.
+            val context = SmbClient.contextFor(share)
+            val out = mutableListOf<TvChannelVideo>()
+            collectSmbVideosRecursively(share, "", context, out)
+            out
+        }
+        if (videos.isEmpty()) return null
+        return TvChannel(id = "network", number = 0, name = "Network", videos = videos.shuffled())
+    }
+
+    private fun collectSmbVideosRecursively(
+        share: NetworkShare,
+        relativePath: String,
+        context: CIFSContext,
+        out: MutableList<TvChannelVideo>,
+    ) {
+        val children = runCatching { SmbBrowser.listChildren(share, relativePath, context) }.getOrDefault(emptyList())
+        for (child in children) {
+            when (child) {
+                is LibraryItem.SmbFolderItem -> collectSmbVideosRecursively(share, child.relativePath, context, out)
+                is LibraryItem.SmbVideoItem -> out.add(toChannelVideo(child.uri, child.name))
+                else -> Unit
+            }
+        }
     }
 
     private fun toChannelVideo(uri: Uri, rawName: String): TvChannelVideo {

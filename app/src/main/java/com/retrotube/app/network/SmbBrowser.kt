@@ -1,6 +1,7 @@
 package com.retrotube.app.network
 
 import com.retrotube.app.library.LibraryItem
+import jcifs.CIFSContext
 import jcifs.smb.SmbFile
 
 /**
@@ -15,8 +16,14 @@ object SmbBrowser {
         "mkv", "mp4", "avi", "mov", "webm", "m4v", "wmv", "flv", "ts", "m2ts", "3gp",
     )
 
-    fun listChildren(share: NetworkShare, relativePath: String): List<LibraryItem> {
-        val folder = SmbFile(folderUrl(share, relativePath), SmbClient.contextFor(share))
+    /** [context] defaults to a fresh one for a single one-off listing; a caller
+     *  walking many folders in the same share (see TvChannelRepository's network
+     *  crawl) should build one [CIFSContext] via [SmbClient.contextFor] and pass
+     *  it into every call instead -- a fresh context re-negotiates the SMB session
+     *  from scratch, which is the dominant cost of listing a deep tree one call
+     *  at a time. */
+    fun listChildren(share: NetworkShare, relativePath: String, context: CIFSContext = SmbClient.contextFor(share)): List<LibraryItem> {
+        val folder = SmbFile(folderUrl(share, relativePath), context)
         val children = folder.listFiles() ?: emptyArray()
 
         val folders = mutableListOf<LibraryItem.SmbFolderItem>()

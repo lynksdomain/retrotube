@@ -33,6 +33,9 @@ import com.retrotube.app.shader.DownscaleTarget
 import com.retrotube.app.shader.ShaderPreset
 import com.retrotube.app.tv.TvChannel
 import com.retrotube.app.tv.TvChannelRepository
+import java.util.concurrent.Callable
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 @UnstableApi
 class PlayerActivity : AppCompatActivity() {
@@ -46,6 +49,7 @@ class PlayerActivity : AppCompatActivity() {
         private const val TV_TRANSITION_FADE_MS = 250L
         private const val TV_STATIC_HOLD_MS = 500L
         private const val TV_STATIC_FADE_OUT_MS = 150L
+        private const val TV_NETWORK_CHANNEL_TIMEOUT_MS = 12_000L
     }
 
     private lateinit var binding: ActivityPlayerBinding
@@ -58,6 +62,13 @@ class PlayerActivity : AppCompatActivity() {
     private lateinit var tvChannelRepository: TvChannelRepository
     private var tvChannels: List<TvChannel> = emptyList()
     private var tvChannelIndex: Int = 0
+
+    /** Two executors mirroring ThumbnailLoader's decode/waiter split: [tvNetworkCrawlExecutor]
+     *  runs the actual SMB crawl, [tvNetworkWaitExecutor] blocks on it with a timeout on a
+     *  separate thread so a slow or dead share can't hang past [TV_NETWORK_CHANNEL_TIMEOUT_MS]
+     *  without ever touching the main thread. */
+    private val tvNetworkCrawlExecutor = Executors.newSingleThreadExecutor()
+    private val tvNetworkWaitExecutor = Executors.newSingleThreadExecutor()
 
     private val progressHandler = Handler(Looper.getMainLooper())
     private val progressSaver = object : Runnable {
@@ -126,6 +137,12 @@ class PlayerActivity : AppCompatActivity() {
         releasePlayer()
     }
 
+    override fun onDestroy() {
+        super.onDestroy()
+        tvNetworkCrawlExecutor.shutdownNow()
+        tvNetworkWaitExecutor.shutdownNow()
+    }
+
     private fun setUpTvMode() {
         binding.playerView.useController = false
         tvChannelRepository = TvChannelRepository(
@@ -143,11 +160,39 @@ class PlayerActivity : AppCompatActivity() {
         }
         val lastChannelId = tvChannelRepository.getLastChannelId()
         tvChannelIndex = tvChannels.indexOfFirst { it.id == lastChannelId }.takeIf { it >= 0 } ?: 0
+        loadNetworkChannelAsync()
 
         binding.playerView.setOnClickListener { toggleTvControls() }
         binding.channelUpButton.setOnClickListener { changeChannel(1) }
         binding.channelDownButton.setOnClickListener { changeChannel(-1) }
         binding.exitTvModeButton.setOnClickListener { finish() }
+    }
+
+    /** Crawls every connected SMB share for a single pooled "Network" channel, off
+     *  the main thread and bounded by [TV_NETWORK_CHANNEL_TIMEOUT_MS] -- a slow or
+     *  unreachable share only costs this one channel rather than blocking TV Mode
+     *  from launching. Appends the channel once (if ever) it comes back; nothing
+     *  happens if there are no shares, none have videos, or the crawl times out. */
+    private fun loadNetworkChannelAsync() {
+        val shareRepository = NetworkShareRepository(this)
+        val repository = tvChannelRepository
+        val future = tvNetworkCrawlExecutor.submit(Callable { repository.buildNetworkChannel(shareRepository) })
+        tvNetworkWaitExecutor.execute {
+            val channel = try {
+                future.get(TV_NETWORK_CHANNEL_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+            } catch (e: Exception) {
+                Log.w("PlayerActivity", "TV Mode network channel unavailable", e)
+                null
+            }
+            if (channel != null) {
+                runOnUiThread { appendNetworkChannel(channel) }
+            }
+        }
+    }
+
+    private fun appendNetworkChannel(channel: TvChannel) {
+        if (isFinishing || isDestroyed || !isTvMode) return
+        tvChannels = tvChannels + channel.copy(number = tvChannels.size + 1)
     }
 
     private fun initializeTvPlayer() {
