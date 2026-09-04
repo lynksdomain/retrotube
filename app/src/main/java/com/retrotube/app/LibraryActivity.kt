@@ -141,6 +141,13 @@ class LibraryActivity : AppCompatActivity() {
         binding.networkSharesButton.setOnClickListener {
             startActivity(Intent(this, NetworkSharesActivity::class.java))
         }
+        binding.tvModeButton.setOnClickListener {
+            startActivity(
+                Intent(this, PlayerActivity::class.java).apply {
+                    putExtra(PlayerActivity.EXTRA_TV_MODE, true)
+                },
+            )
+        }
         binding.settingsButton.setOnClickListener {
             startActivity(
                 Intent(this, EffectSettingsActivity::class.java).apply {

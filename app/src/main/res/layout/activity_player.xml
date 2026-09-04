@@ -24,4 +24,65 @@
         android:alpha="0"
         android:visibility="gone" />
 
+    <TextView
+        android:id="@+id/channelOsdBadge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|end"
+        android:layout_margin="20dp"
+        android:paddingHorizontal="14dp"
+        android:paddingVertical="8dp"
+        android:background="@drawable/badge_background"
+        android:textColor="@color/retro_teal"
+        android:textSize="13sp"
+        android:fontFamily="monospace"
+        android:alpha="0"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:id="@+id/tvModeControls"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:layout_gravity="end"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:paddingEnd="20dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/channelUpButton"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:text="▲"
+            android:textSize="20sp"
+            android:textColor="@android:color/white"
+            android:gravity="center"
+            android:background="@drawable/poster_icon_background"
+            android:layout_marginBottom="16dp" />
+
+        <TextView
+            android:id="@+id/channelDownButton"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:text="▼"
+            android:textSize="20sp"
+            android:textColor="@android:color/white"
+            android:gravity="center"
+            android:background="@drawable/poster_icon_background" />
+
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/exitTvModeButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|start"
+        android:layout_margin="20dp"
+        android:text="✕"
+        android:textSize="18sp"
+        android:textColor="@android:color/white"
+        android:gravity="center"
+        android:background="@drawable/poster_icon_background"
+        android:visibility="gone" />
+
 </FrameLayout>
