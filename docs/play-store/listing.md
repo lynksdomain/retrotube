@@ -17,7 +17,7 @@ RetroTube plays your own video library through real, RetroArch-style CRT shaders
 Point it at a folder (or a network share) and every video in it plays back through the shader pipeline. Pick a look once as your default, or override it per file. Built for the retro handheld crowd, but it's just a video player underneath — anything with a folder of video files works.
 
 REAL CRT SHADING
-• 7 shader presets across 3 device-cost tiers, each modeled on a real RetroArch preset family — zfast-crt, phosphor-mono, deconverge, crt-easymode, vhs, crt-guest-advanced, ntsc
+• 9 shader presets across 3 device-cost tiers, each modeled on a real RetroArch preset family — zfast-crt, phosphor-mono, deconverge, interlace-roll, crt-easymode, vhs, vhs-rec, crt-guest-advanced, ntsc
 • Independent curvature toggle — combine screen warp with any preset, or none
 • Resolution downscale pre-pass with integer-scale snapping, so scanlines read as chunky and authentic instead of a faint HD filter
 • Fit / stretch / crop aspect modes

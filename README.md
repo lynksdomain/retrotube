@@ -21,9 +21,9 @@ Point RetroTube at a folder of videos — local or over SMB — and every episod
 ## Features
 
 ### 🖥️ Real CRT shading, not a filter
-- **7 shader presets across 3 device-cost tiers**, each modeled on a real RetroArch preset family — pick based on how much GPU headroom your device has:
-  - **Low**: `zfast-crt`, `phosphor-mono`, `deconverge`
-  - **Medium**: `crt-easymode`, `vhs`
+- **9 shader presets across 3 device-cost tiers**, each modeled on a real RetroArch preset family — pick based on how much GPU headroom your device has:
+  - **Low**: `zfast-crt`, `phosphor-mono`, `deconverge`, `interlace-roll`
+  - **Medium**: `crt-easymode`, `vhs`, `vhs-rec`
   - **High**: `crt-guest-advanced`, `ntsc`
 - **Curvature** as an independent toggle — not baked into any one preset, so any preset can be combined with or without screen warp.
 - **Resolution downscale pre-pass** with integer-scale snapping — forces the CRT math to run against a fixed low resolution (240p/480p/720p) snapped to a clean multiple of your screen height, so scanlines/mask read as chunky and authentic instead of a faint HD-video filter.
