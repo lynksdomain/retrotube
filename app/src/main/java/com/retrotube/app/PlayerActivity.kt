@@ -6,12 +6,16 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.view.KeyEvent
 import android.view.View
 import android.view.WindowManager
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.media3.common.Effect
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
@@ -26,6 +30,7 @@ import com.retrotube.app.network.NetworkShareRepository
 import com.retrotube.app.network.SmbDataSource
 import com.retrotube.app.network.SmbUri
 import com.retrotube.app.progress.PlaybackProgressRepository
+import com.retrotube.app.settings.SettingsRepository
 import com.retrotube.app.settings.VideoEffectSettings
 import com.retrotube.app.shader.CrtGlEffect
 import com.retrotube.app.shader.DownscaleGlEffect
@@ -45,6 +50,8 @@ class PlayerActivity : AppCompatActivity() {
     companion object {
         const val EXTRA_SETTINGS = "extra_settings"
         const val EXTRA_TV_MODE = "extra_tv_mode"
+        const val EXTRA_QUEUE_URIS = "extra_queue_uris"
+        const val EXTRA_QUEUE_INDEX = "extra_queue_index"
         private const val PROGRESS_SAVE_INTERVAL_MS = 5_000L
         private const val AMBIENT_IDLE_DELAY_MS = 20_000L
         private const val TV_CONTROLS_HIDE_DELAY_MS = 4_000L
@@ -59,6 +66,13 @@ class PlayerActivity : AppCompatActivity() {
     private var player: ExoPlayer? = null
     private var videoUri: Uri? = null
     private var effects: List<Effect> = emptyList()
+
+    /** The list this video was opened from (a folder listing, search results, a
+     *  collection, ...), for shoulder-button previous/next in normal playback --
+     *  see [playAdjacentInQueue]. Empty when opened from somewhere that has no
+     *  such list (e.g. a deep link). */
+    private var queueUris: List<Uri> = emptyList()
+    private var queueIndex: Int = -1
 
     private var isTvMode = false
     private lateinit var tvChannelRepository: TvChannelRepository
@@ -114,11 +128,48 @@ class PlayerActivity : AppCompatActivity() {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         binding = ActivityPlayerBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        hideSystemBars()
         progressRepository = PlaybackProgressRepository(this)
         isTvMode = intent.getBooleanExtra(EXTRA_TV_MODE, false)
         if (isTvMode) {
             setUpTvMode()
+        } else {
+            queueUris = intent.getStringArrayListExtra(EXTRA_QUEUE_URIS)?.map { Uri.parse(it) }.orEmpty()
+            queueIndex = intent.getIntExtra(EXTRA_QUEUE_INDEX, -1)
         }
+    }
+
+    /** True fullscreen: the system nav bar (gesture line included) and status bar
+     *  both stay hidden during playback rather than sitting over the video, and
+     *  swiping only reveals them momentarily rather than pinning them back on. */
+    private fun hideSystemBars() {
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        WindowInsetsControllerCompat(window, binding.root).let { controller ->
+            controller.hide(WindowInsetsCompat.Type.systemBars())
+            controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        }
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) hideSystemBars()
+    }
+
+    /** Gamepad shoulder buttons (e.g. a Retroid Nova's L1/R1) -- channel down/up
+     *  in TV Mode, previous/next video in whatever list this one was opened from
+     *  otherwise. onKeyUp (not down) so a held button doesn't repeat-fire. */
+    override fun onKeyUp(keyCode: Int, event: KeyEvent?): Boolean {
+        when (keyCode) {
+            KeyEvent.KEYCODE_BUTTON_R1 -> {
+                if (isTvMode) changeChannel(1) else playAdjacentInQueue(1)
+                return true
+            }
+            KeyEvent.KEYCODE_BUTTON_L1 -> {
+                if (isTvMode) changeChannel(-1) else playAdjacentInQueue(-1)
+                return true
+            }
+        }
+        return super.onKeyUp(keyCode, event)
     }
 
     override fun onStart() {
@@ -315,6 +366,23 @@ class PlayerActivity : AppCompatActivity() {
         videoUri = uri
         val settings = VideoEffectSettings.deserialize(intent.getStringExtra(EXTRA_SETTINGS))
             ?: VideoEffectSettings.DEFAULT
+        val resumePositionMs = progressRepository.getProgress(uri.toString())?.positionMs
+        player = createPlayer(uri, settings, autoAdvanceOnEnd = false, resumePositionMs)
+        progressHandler.postDelayed(progressSaver, PROGRESS_SAVE_INTERVAL_MS)
+    }
+
+    /** Shoulder-button previous/next within [queueUris] -- a no-op past either end
+     *  rather than wrapping, since this is "skip to the next file," not a channel. */
+    private fun playAdjacentInQueue(direction: Int) {
+        val newIndex = queueIndex + direction
+        if (newIndex !in queueUris.indices) return
+        saveProgress()
+        releasePlayer()
+
+        val uri = queueUris[newIndex]
+        queueIndex = newIndex
+        videoUri = uri
+        val settings = SettingsRepository(this).effectiveSettings(uri.toString())
         val resumePositionMs = progressRepository.getProgress(uri.toString())?.positionMs
         player = createPlayer(uri, settings, autoAdvanceOnEnd = false, resumePositionMs)
         progressHandler.postDelayed(progressSaver, PROGRESS_SAVE_INTERVAL_MS)

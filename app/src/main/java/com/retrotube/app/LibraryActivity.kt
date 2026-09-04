@@ -125,7 +125,10 @@ class LibraryActivity : AppCompatActivity() {
                 refreshList()
             },
             onSmbShareRemoveClick = { folder -> confirmRemoveShare(folder.shareId, folder.name) },
-            onSmbVideoClick = { video -> launchPlayerForUri(video.uri) },
+            onSmbVideoClick = { video ->
+                val queue = adapter.currentItems().filterIsInstance<LibraryItem.SmbVideoItem>().map { it.uri }
+                launchPlayerForUri(video.uri, queue, queue.indexOfFirst { it == video.uri })
+            },
             onSmbVideoMenuClick = { video, anchor -> showSmbVideoMenu(video, anchor) },
         )
         val gridLayoutManager = GridLayoutManager(this, POSTER_GRID_SPAN_COUNT)
@@ -453,14 +456,22 @@ class LibraryActivity : AppCompatActivity() {
     }
 
     private fun launchPlayer(video: LibraryItem.VideoItem) {
-        launchPlayerForUri(video.document.uri)
+        // Whatever's currently on screen (a folder, search results, the Continue
+        // Watching rail, an open collection) becomes the shoulder-button previous/
+        // next queue -- see PlayerActivity.playAdjacentInQueue.
+        val queue = adapter.currentItems().filterIsInstance<LibraryItem.VideoItem>().map { it.document.uri }
+        launchPlayerForUri(video.document.uri, queue, queue.indexOfFirst { it == video.document.uri })
     }
 
-    private fun launchPlayerForUri(uri: Uri) {
+    private fun launchPlayerForUri(uri: Uri, queue: List<Uri> = emptyList(), queueIndex: Int = -1) {
         val settings = settingsRepository.effectiveSettings(uri.toString())
         val intent = Intent(this, PlayerActivity::class.java).apply {
             data = uri
             putExtra(PlayerActivity.EXTRA_SETTINGS, settings.serialize())
+            if (queue.size > 1 && queueIndex >= 0) {
+                putStringArrayListExtra(PlayerActivity.EXTRA_QUEUE_URIS, ArrayList(queue.map { it.toString() }))
+                putExtra(PlayerActivity.EXTRA_QUEUE_INDEX, queueIndex)
+            }
         }
         startActivity(intent)
     }
