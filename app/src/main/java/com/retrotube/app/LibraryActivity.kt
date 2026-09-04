@@ -148,6 +148,10 @@ class LibraryActivity : AppCompatActivity() {
                 },
             )
         }
+        binding.tvModeButton.setOnLongClickListener {
+            startActivity(Intent(this, TvChannelEditorActivity::class.java))
+            true
+        }
         binding.settingsButton.setOnClickListener {
             startActivity(
                 Intent(this, EffectSettingsActivity::class.java).apply {

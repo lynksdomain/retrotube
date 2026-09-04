@@ -1,5 +1,6 @@
 package com.retrotube.app
 
+import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
@@ -20,7 +21,6 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import com.retrotube.app.collections.CollectionRepository
 import com.retrotube.app.databinding.ActivityPlayerBinding
-import com.retrotube.app.library.LibraryRepository
 import com.retrotube.app.metadata.VideoMetadataRepository
 import com.retrotube.app.network.NetworkShareRepository
 import com.retrotube.app.network.SmbDataSource
@@ -32,6 +32,8 @@ import com.retrotube.app.shader.DownscaleGlEffect
 import com.retrotube.app.shader.DownscaleTarget
 import com.retrotube.app.shader.ShaderPreset
 import com.retrotube.app.tv.TvChannel
+import com.retrotube.app.tv.TvChannelConfigRepository
+import com.retrotube.app.tv.TvChannelDefinition
 import com.retrotube.app.tv.TvChannelRepository
 import java.util.concurrent.Callable
 import java.util.concurrent.Executors
@@ -145,22 +147,35 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun setUpTvMode() {
         binding.playerView.useController = false
+        val configRepository = TvChannelConfigRepository(this)
+        if (!configRepository.isConfigured()) {
+            // No channels programmed yet -- the setup wizard runs instead of playing
+            // anything, and TV Mode is re-launched fresh once it's done.
+            startActivity(Intent(this, TvSetupActivity::class.java))
+            finish()
+            return
+        }
+
         tvChannelRepository = TvChannelRepository(
             this,
-            LibraryRepository(this),
             CollectionRepository(this),
             progressRepository,
             VideoMetadataRepository(this),
         )
-        tvChannels = tvChannelRepository.getChannels()
-        if (tvChannels.isEmpty()) {
+
+        val definitions = configRepository.getChannels()
+        val (networkDefinitions, localDefinitions) = definitions.partition { tvChannelRepository.hasNetworkSource(it) }
+
+        tvChannels = localDefinitions.mapNotNull { tvChannelRepository.resolveChannel(it) }
+            .mapIndexed { index, channel -> channel.copy(number = index + 1) }
+        if (tvChannels.isEmpty() && networkDefinitions.isEmpty()) {
             Toast.makeText(this, getString(R.string.tv_mode_no_content), Toast.LENGTH_LONG).show()
             finish()
             return
         }
         val lastChannelId = tvChannelRepository.getLastChannelId()
         tvChannelIndex = tvChannels.indexOfFirst { it.id == lastChannelId }.takeIf { it >= 0 } ?: 0
-        loadNetworkChannelAsync()
+        networkDefinitions.forEach { loadNetworkChannelAsync(it) }
 
         binding.playerView.setOnClickListener { toggleTvControls() }
         binding.channelUpButton.setOnClickListener { changeChannel(1) }
@@ -168,20 +183,19 @@ class PlayerActivity : AppCompatActivity() {
         binding.exitTvModeButton.setOnClickListener { finish() }
     }
 
-    /** Crawls every connected SMB share for a single pooled "Network" channel, off
-     *  the main thread and bounded by [TV_NETWORK_CHANNEL_TIMEOUT_MS] -- a slow or
-     *  unreachable share only costs this one channel rather than blocking TV Mode
-     *  from launching. Appends the channel once (if ever) it comes back; nothing
-     *  happens if there are no shares, none have videos, or the crawl times out. */
-    private fun loadNetworkChannelAsync() {
-        val shareRepository = NetworkShareRepository(this)
+    /** Resolves one channel definition with a network source off the main thread,
+     *  bounded by [TV_NETWORK_CHANNEL_TIMEOUT_MS] -- a slow or unreachable share
+     *  only costs this one channel rather than blocking TV Mode from launching.
+     *  Appends the channel once (if ever) it comes back; nothing happens if it
+     *  resolves to no videos or the crawl times out. */
+    private fun loadNetworkChannelAsync(definition: TvChannelDefinition) {
         val repository = tvChannelRepository
-        val future = tvNetworkCrawlExecutor.submit(Callable { repository.buildNetworkChannel(shareRepository) })
+        val future = tvNetworkCrawlExecutor.submit(Callable { repository.resolveChannel(definition) })
         tvNetworkWaitExecutor.execute {
             val channel = try {
                 future.get(TV_NETWORK_CHANNEL_TIMEOUT_MS, TimeUnit.MILLISECONDS)
             } catch (e: Exception) {
-                Log.w("PlayerActivity", "TV Mode network channel unavailable", e)
+                Log.w("PlayerActivity", "TV Mode channel '${definition.name}' unavailable", e)
                 null
             }
             if (channel != null) {

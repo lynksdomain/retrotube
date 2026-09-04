@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/retro_background">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
+        android:padding="32dp">
+
+        <TextView
+            android:id="@+id/setupTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/tv_setup_title"
+            android:textColor="@color/retro_text_primary"
+            android:textSize="24sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/setupSubtitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="@string/tv_setup_subtitle"
+            android:textColor="@color/retro_text_muted"
+            android:textSize="14sp"
+            android:gravity="center"
+            android:maxWidth="320dp" />
+
+        <TextView
+            android:id="@+id/setupAutoButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
+            android:background="@color/retro_teal"
+            android:textColor="@color/retro_teal_on"
+            android:textStyle="bold"
+            android:textSize="16sp"
+            android:gravity="center"
+            android:padding="16dp"
+            android:text="@string/tv_setup_auto_button" />
+
+        <TextView
+            android:id="@+id/setupAutoHint"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/tv_setup_auto_hint"
+            android:textColor="@color/retro_text_muted"
+            android:textSize="12sp"
+            android:gravity="center" />
+
+        <TextView
+            android:id="@+id/setupManualButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:background="@color/retro_surface_alt"
+            android:textColor="@color/retro_text_primary"
+            android:textStyle="bold"
+            android:textSize="16sp"
+            android:gravity="center"
+            android:padding="16dp"
+            android:text="@string/tv_setup_manual_button" />
+
+        <TextView
+            android:id="@+id/setupManualHint"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/tv_setup_manual_hint"
+            android:textColor="@color/retro_text_muted"
+            android:textSize="12sp"
+            android:gravity="center" />
+
+    </LinearLayout>
+
+</FrameLayout>

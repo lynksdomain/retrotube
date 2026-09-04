@@ -2,11 +2,10 @@ package com.retrotube.app.tv
 
 import android.content.Context
 import android.net.Uri
+import androidx.documentfile.provider.DocumentFile
 import com.retrotube.app.collections.CollectionRepository
 import com.retrotube.app.library.LibraryItem
-import com.retrotube.app.library.LibraryRepository
 import com.retrotube.app.metadata.VideoMetadataRepository
-import com.retrotube.app.network.NetworkShare
 import com.retrotube.app.network.NetworkShareRepository
 import com.retrotube.app.network.SmbBrowser
 import com.retrotube.app.network.SmbClient
@@ -14,121 +13,86 @@ import com.retrotube.app.progress.PlaybackProgressRepository
 import jcifs.CIFSContext
 
 /**
- * Builds TV Mode's channel list fresh every time -- there's no channel-editing
- * UI, channels are just a live view over folders and collections that already
- * exist. What *is* persisted is where each channel currently is, so flipping
- * back to a channel later picks up roughly where it left off instead of
- * re-rolling from the start (or, worse, a random point that could be a
- * spoiler for a show you're mid-way through).
+ * Resolves the user's own programmed channels (see [TvChannelConfigRepository])
+ * into actual playable [TvChannel]s, expanding each channel's sources in the
+ * order they were added -- "add this folder, then that one" plays in that
+ * order without hand-ordering every episode. What's persisted *here* is where
+ * each channel currently is, so flipping back to a channel later picks up
+ * roughly where it left off instead of re-rolling from the start (or, worse,
+ * a random point that could be a spoiler for a show you're mid-way through).
  *
- * Shows and the Movies channel are drawn from the local (SAF) library only --
- * mirroring that same per-folder breakdown for SMB would mean a recursive
- * network crawl per folder, every TV Mode launch. Instead, all SMB content
- * across every connected share is pooled into a single "Network" channel
- * (see [buildNetworkChannel]) -- one crawl, one channel, and a caller-side
- * timeout keeps a slow or unreachable share from blocking TV Mode itself
- * rather than just costing that one channel. Collections (and therefore the
- * Wildcard pool) already include whatever's in them regardless of scheme, so
- * SMB content also reaches TV Mode by way of a collection, same as before.
+ * A definition with a [TvChannelSource.SmbFolder] source needs real network
+ * I/O to resolve (see [hasNetworkSource]) -- the caller is expected to resolve
+ * those off the main thread with its own timeout, the same way the old
+ * standalone "Network" channel worked, since a slow or unreachable share
+ * should only cost that one channel rather than blocking TV Mode's launch.
  */
 class TvChannelRepository(
-    context: Context,
-    private val libraryRepository: LibraryRepository,
+    private val context: Context,
     private val collectionRepository: CollectionRepository,
     private val progressRepository: PlaybackProgressRepository,
     private val metadataRepository: VideoMetadataRepository,
 ) {
     private val prefs = context.getSharedPreferences("retrotube_tv_mode", Context.MODE_PRIVATE)
 
-    fun getChannels(): List<TvChannel> {
-        val allVideos = libraryRepository.getAllVideos()
-        val byFolder = allVideos.groupBy { it.pathLabel }
+    fun hasNetworkSource(definition: TvChannelDefinition): Boolean =
+        definition.sources.any { it is TvChannelSource.SmbFolder }
 
-        val showChannels = byFolder.entries
-            .filter { it.value.size >= 2 }
-            .sortedBy { it.key.lowercase() }
-            .map { (pathLabel, entries) ->
-                val videos = entries
-                    .sortedBy { it.name.lowercase() }
-                    .map { toChannelVideo(it.document.uri, it.name) }
-                TvChannel(
-                    id = "show:$pathLabel",
-                    number = 0,
-                    name = pathLabel.substringAfterLast('/'),
-                    videos = videos,
-                )
-            }
-
-        val collectionChannels = collectionRepository.getAll()
-            .filter { it.videoUris.isNotEmpty() }
-            .sortedBy { it.name.lowercase() }
-            .map { collection ->
-                TvChannel(
-                    id = "collection:${collection.id}",
-                    number = 0,
-                    name = collection.name,
-                    videos = collection.videoUris.map { toChannelVideo(Uri.parse(it), it.substringAfterLast('/')) },
-                )
-            }
-
-        val movieEntries = byFolder.values.filter { it.size == 1 }.flatten()
-        val moviesChannel = if (movieEntries.isEmpty()) {
-            emptyList()
-        } else {
-            listOf(
-                TvChannel(
-                    id = "movies",
-                    number = 0,
-                    name = "Movies",
-                    videos = movieEntries.sortedBy { it.name.lowercase() }.map { toChannelVideo(it.document.uri, it.name) },
-                ),
-            )
-        }
-
-        val wildcardPool = (allVideos.map { it.document.uri.toString() to it.name } +
-            collectionChannels.flatMap { channel -> channel.videos.map { it.uri.toString() to it.displayName } })
-            .distinctBy { it.first }
-        val wildcardChannel = if (wildcardPool.isEmpty()) {
-            emptyList()
-        } else {
-            listOf(
-                TvChannel(
-                    id = "wildcard",
-                    number = 0,
-                    name = "Wildcard",
-                    videos = wildcardPool.shuffled().map { toChannelVideo(Uri.parse(it.first), it.second) },
-                ),
-            )
-        }
-
-        return (showChannels + collectionChannels + moviesChannel + wildcardChannel)
-            .filter { it.videos.isNotEmpty() }
-            .mapIndexed { index, channel -> channel.copy(number = index + 1) }
+    /** Expands every source in [definition] into one flat video list, in source
+     *  order. Local-only definitions are safe on the main thread; a definition
+     *  with any [TvChannelSource.SmbFolder] source does real network I/O and
+     *  must be called off it (see [hasNetworkSource]). Returns null if nothing
+     *  resolved to any videos. */
+    fun resolveChannel(definition: TvChannelDefinition): TvChannel? {
+        val videos = definition.sources.flatMap { expandSource(it) }
+        if (videos.isEmpty()) return null
+        return TvChannel(id = definition.id, number = 0, name = definition.name, videos = videos)
     }
 
-    /** Pools every video across every connected SMB share into one channel --
-     *  real network I/O (a recursive directory listing per share), so this must
-     *  be called off the main thread, and the caller is expected to wrap it in
-     *  its own timeout: a slow or unreachable share should only cost this one
-     *  channel, not block TV Mode from launching at all. Returns null if there
-     *  are no shares or none of them have any videos. */
-    fun buildNetworkChannel(shareRepository: NetworkShareRepository): TvChannel? {
-        val videos = shareRepository.getAll().flatMap { share ->
-            // One context (and so one SMB session) reused for every folder in this
-            // share's tree -- a fresh one per call re-negotiates the session from
-            // scratch, which dominates the cost of listing a deep tree one call at
-            // a time.
-            val context = SmbClient.contextFor(share)
-            val out = mutableListOf<TvChannelVideo>()
-            collectSmbVideosRecursively(share, "", context, out)
-            out
+    private fun expandSource(source: TvChannelSource): List<TvChannelVideo> = when (source) {
+        is TvChannelSource.LocalFolder -> expandLocalFolder(source)
+        is TvChannelSource.Collection -> expandCollection(source)
+        is TvChannelSource.Video -> listOf(toChannelVideo(Uri.parse(source.uri), source.displayName))
+        is TvChannelSource.SmbFolder -> expandSmbFolder(source)
+    }
+
+    private fun expandLocalFolder(source: TvChannelSource.LocalFolder): List<TvChannelVideo> {
+        val root = runCatching { DocumentFile.fromTreeUri(context, Uri.parse(source.treeUri)) }.getOrNull()
+            ?: return emptyList()
+        val out = mutableListOf<DocumentFile>()
+        collectLocalVideosRecursively(root, out)
+        return out.sortedBy { (it.name ?: "").lowercase() }
+            .map { toChannelVideo(it.uri, it.name ?: "Untitled") }
+    }
+
+    private fun collectLocalVideosRecursively(folder: DocumentFile, out: MutableList<DocumentFile>) {
+        val children = runCatching { folder.listFiles() }.getOrDefault(emptyArray())
+        for (child in children) {
+            when {
+                child.isDirectory -> collectLocalVideosRecursively(child, out)
+                child.isFile && (child.type?.startsWith("video/") == true) -> out.add(child)
+            }
         }
-        if (videos.isEmpty()) return null
-        return TvChannel(id = "network", number = 0, name = "Network", videos = videos.shuffled())
+    }
+
+    private fun expandCollection(source: TvChannelSource.Collection): List<TvChannelVideo> =
+        collectionRepository.get(source.collectionId)?.videoUris.orEmpty()
+            .map { toChannelVideo(Uri.parse(it), it.substringAfterLast('/')) }
+
+    private fun expandSmbFolder(source: TvChannelSource.SmbFolder): List<TvChannelVideo> {
+        val share = NetworkShareRepository(context).get(source.shareId) ?: return emptyList()
+        // One context (and so one SMB session) reused for every folder in this
+        // source's tree -- a fresh one per call re-negotiates the session from
+        // scratch, which dominates the cost of listing a deep tree one call at
+        // a time.
+        val cifsContext = SmbClient.contextFor(share)
+        val out = mutableListOf<TvChannelVideo>()
+        collectSmbVideosRecursively(share, source.relativePath, cifsContext, out)
+        return out
     }
 
     private fun collectSmbVideosRecursively(
-        share: NetworkShare,
+        share: com.retrotube.app.network.NetworkShare,
         relativePath: String,
         context: CIFSContext,
         out: MutableList<TvChannelVideo>,
