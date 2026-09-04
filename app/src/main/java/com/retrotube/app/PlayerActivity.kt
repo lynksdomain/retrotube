@@ -329,6 +329,10 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     private fun saveProgress() {
+        // TV mode has no Continue Watching entry point (no scrub/resume UI at all),
+        // so writing progress here would just quietly seed the rail with whatever
+        // channel happened to be playing -- not something the user chose to watch.
+        if (isTvMode) return
         val uri = videoUri ?: return
         val exoPlayer = player ?: return
         if (exoPlayer.duration <= 0) return
