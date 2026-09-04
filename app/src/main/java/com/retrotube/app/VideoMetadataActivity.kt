@@ -7,12 +7,17 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.view.View
 import android.widget.SeekBar
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.documentfile.provider.DocumentFile
 import com.retrotube.app.databinding.ActivityVideoMetadataBinding
+import com.retrotube.app.library.ImageUtils
 import com.retrotube.app.library.ThumbnailLoader
 import com.retrotube.app.metadata.VideoMetadataRepository
+import com.retrotube.app.network.NetworkShareRepository
+import com.retrotube.app.network.SmbUri
 import java.util.concurrent.Executors
 
 /**
@@ -20,6 +25,11 @@ import java.util.concurrent.Executors
  * frame grab is rarely the best poster, and a raw filename is rarely the
  * best title. Both overrides are optional; clearing them (or never setting
  * them) falls back to the automatic filename/frame-grab behavior.
+ *
+ * Frame scrubbing (the seek bar + candidate thumbnails) needs to actually
+ * decode the video interactively, which only works for local SAF files right
+ * now -- for an SMB video this screen instead offers picking an arbitrary
+ * photo as the poster, which needs nothing scheme-specific at all.
  */
 class VideoMetadataActivity : AppCompatActivity() {
 
@@ -42,6 +52,13 @@ class VideoMetadataActivity : AppCompatActivity() {
     private var durationMs: Long = 0L
     private var selectedBitmap: Bitmap? = null
 
+    private val pickPhoto = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri == null) return@registerForActivityResult
+        val bitmap = ImageUtils.decodeSampledBitmap(this, uri) ?: return@registerForActivityResult
+        selectedBitmap = bitmap
+        binding.posterPreview.setImageBitmap(bitmap)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val uriExtra = intent.getStringExtra(EXTRA_VIDEO_URI)
@@ -50,40 +67,56 @@ class VideoMetadataActivity : AppCompatActivity() {
             return
         }
         videoUri = Uri.parse(uriExtra)
+        val smbInfo = SmbUri.parse(videoUri)
 
         binding = ActivityVideoMetadataBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
         metadataRepository = VideoMetadataRepository(this)
 
-        val rawName = DocumentFile.fromSingleUri(this, videoUri)?.name ?: "Untitled"
-        val defaultTitle = cleanupName(rawName)
-        binding.titleInput.setText(metadataRepository.getCustomTitle(uriExtra) ?: defaultTitle)
+        val rawName = if (smbInfo != null) {
+            smbInfo.second.substringAfterLast('/')
+        } else {
+            DocumentFile.fromSingleUri(this, videoUri)?.name ?: "Untitled"
+        }
+        binding.titleInput.setText(metadataRepository.getCustomTitle(uriExtra) ?: cleanupName(rawName))
         binding.tagsInput.setText(metadataRepository.getTags(uriExtra).joinToString(", "))
 
         val existingThumbnail = metadataRepository.getCustomThumbnail(uriExtra)
-        if (existingThumbnail != null) {
-            selectedBitmap = existingThumbnail
-            binding.posterPreview.setImageBitmap(existingThumbnail)
-        } else {
-            ThumbnailLoader.load(this, videoUri, binding.posterPreview)
+        when {
+            existingThumbnail != null -> {
+                selectedBitmap = existingThumbnail
+                binding.posterPreview.setImageBitmap(existingThumbnail)
+            }
+            smbInfo != null -> {
+                val (shareId, relativePath) = smbInfo
+                ThumbnailLoader.loadSmb(this, NetworkShareRepository(this), uriExtra, shareId, relativePath, binding.posterPreview)
+            }
+            else -> ThumbnailLoader.load(this, videoUri, binding.posterPreview)
         }
 
         binding.backButton.setOnClickListener { finish() }
         binding.saveButton.setOnClickListener { save() }
         binding.resetButton.setOnClickListener { resetToAuto() }
+        binding.choosePhotoButton.setOnClickListener { pickPhoto.launch("image/*") }
 
-        binding.frameSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) = Unit
-            override fun onStartTrackingTouch(seekBar: SeekBar?) = Unit
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {
-                if (durationMs <= 0L) return
-                val fraction = (seekBar?.progress ?: 0) / binding.frameSeekBar.max.toFloat()
-                extractFrameAt((fraction * durationMs).toLong())
-            }
-        })
-
-        loadDurationAndCandidates()
+        if (smbInfo != null) {
+            // Interactive scrubbing needs to decode the video live -- only wired up
+            // for local SAF files so far (see ThumbnailLoader's own SMB workaround
+            // for why that isn't a quick add). Picking a photo still works fine.
+            binding.frameScrubSection.visibility = View.GONE
+        } else {
+            binding.frameSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) = Unit
+                override fun onStartTrackingTouch(seekBar: SeekBar?) = Unit
+                override fun onStopTrackingTouch(seekBar: SeekBar?) {
+                    if (durationMs <= 0L) return
+                    val fraction = (seekBar?.progress ?: 0) / binding.frameSeekBar.max.toFloat()
+                    extractFrameAt((fraction * durationMs).toLong())
+                }
+            })
+            loadDurationAndCandidates()
+        }
     }
 
     private fun cleanupName(rawName: String): String =

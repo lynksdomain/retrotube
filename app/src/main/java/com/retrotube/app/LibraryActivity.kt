@@ -467,18 +467,24 @@ class LibraryActivity : AppCompatActivity() {
     }
 
     private fun showSmbVideoMenu(video: LibraryItem.SmbVideoItem, anchor: View) {
-        // Collections, custom titles/posters, and Continue Watching all resolve their
-        // videos back from a saved URI via SAF -- until that path also understands
-        // smb:// URIs, an SMB video only gets a per-video shader override here.
+        // Collections and Continue Watching resolve their videos back from a saved URI
+        // via SAF -- until that path also understands smb:// URIs, those two stay
+        // unavailable for an SMB video, but title/poster editing works fine (custom
+        // metadata is scheme-agnostic; it's only frame-scrubbing that's SAF-only).
+        val uriString = video.uri.toString()
         PopupMenu(this, anchor).apply {
             menu.add(getString(R.string.effect_settings_for_video))
-            setOnMenuItemClickListener {
-                startActivity(
-                    Intent(this@LibraryActivity, EffectSettingsActivity::class.java).apply {
-                        putExtra(EffectSettingsActivity.EXTRA_MODE, EffectSettingsActivity.MODE_OVERRIDE)
-                        putExtra(EffectSettingsActivity.EXTRA_VIDEO_URI, video.uri.toString())
-                    },
-                )
+            menu.add(getString(R.string.edit_title_and_poster))
+            setOnMenuItemClickListener { menuItem ->
+                when (menuItem.title) {
+                    getString(R.string.edit_title_and_poster) -> openMetadataEditor(uriString)
+                    else -> startActivity(
+                        Intent(this@LibraryActivity, EffectSettingsActivity::class.java).apply {
+                            putExtra(EffectSettingsActivity.EXTRA_MODE, EffectSettingsActivity.MODE_OVERRIDE)
+                            putExtra(EffectSettingsActivity.EXTRA_VIDEO_URI, uriString)
+                        },
+                    )
+                }
                 true
             }
         }.show()
@@ -576,9 +582,13 @@ class LibraryActivity : AppCompatActivity() {
     }
 
     private fun openMetadataEditor(video: LibraryItem.VideoItem) {
+        openMetadataEditor(video.document.uri.toString())
+    }
+
+    private fun openMetadataEditor(uriString: String) {
         startActivity(
             Intent(this, VideoMetadataActivity::class.java).apply {
-                putExtra(VideoMetadataActivity.EXTRA_VIDEO_URI, video.document.uri.toString())
+                putExtra(VideoMetadataActivity.EXTRA_VIDEO_URI, uriString)
             },
         )
     }

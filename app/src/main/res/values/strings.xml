@@ -31,6 +31,7 @@
     <string name="video_metadata_title">Edit Title &amp; Poster</string>
     <string name="title_input_label">Title</string>
     <string name="pick_frame_label">Pick a frame</string>
+    <string name="choose_photo">Choose Photo…</string>
     <string name="save_metadata">Save</string>
     <string name="reset_to_auto">Reset to Auto</string>
     <string name="tags_input_label">Tags (comma separated)</string>

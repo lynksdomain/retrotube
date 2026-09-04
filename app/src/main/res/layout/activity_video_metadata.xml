@@ -79,64 +79,79 @@
                 android:paddingVertical="10dp"
                 android:layout_marginBottom="24dp" />
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/pick_frame_label"
-                android:textStyle="bold"
-                android:layout_marginBottom="6dp" />
-
-            <SeekBar
-                android:id="@+id/frameSeekBar"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:max="1000"
-                android:progressTint="@color/retro_teal"
-                android:thumbTint="@color/retro_teal" />
-
             <LinearLayout
+                android:id="@+id/frameScrubSection"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginTop="12dp"
-                android:layout_marginBottom="20dp">
+                android:orientation="vertical">
 
-                <ImageView
-                    android:id="@+id/candidate1"
-                    android:layout_width="0dp"
-                    android:layout_height="90dp"
-                    android:layout_weight="1"
-                    android:layout_marginEnd="6dp"
-                    android:scaleType="centerCrop"
-                    android:background="@color/thumbnail_placeholder" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/pick_frame_label"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="6dp" />
 
-                <ImageView
-                    android:id="@+id/candidate2"
-                    android:layout_width="0dp"
-                    android:layout_height="90dp"
-                    android:layout_weight="1"
-                    android:layout_marginEnd="6dp"
-                    android:scaleType="centerCrop"
-                    android:background="@color/thumbnail_placeholder" />
+                <SeekBar
+                    android:id="@+id/frameSeekBar"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="1000"
+                    android:progressTint="@color/retro_teal"
+                    android:thumbTint="@color/retro_teal" />
 
-                <ImageView
-                    android:id="@+id/candidate3"
-                    android:layout_width="0dp"
-                    android:layout_height="90dp"
-                    android:layout_weight="1"
-                    android:layout_marginEnd="6dp"
-                    android:scaleType="centerCrop"
-                    android:background="@color/thumbnail_placeholder" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="12dp"
+                    android:layout_marginBottom="20dp">
 
-                <ImageView
-                    android:id="@+id/candidate4"
-                    android:layout_width="0dp"
-                    android:layout_height="90dp"
-                    android:layout_weight="1"
-                    android:scaleType="centerCrop"
-                    android:background="@color/thumbnail_placeholder" />
+                    <ImageView
+                        android:id="@+id/candidate1"
+                        android:layout_width="0dp"
+                        android:layout_height="90dp"
+                        android:layout_weight="1"
+                        android:layout_marginEnd="6dp"
+                        android:scaleType="centerCrop"
+                        android:background="@color/thumbnail_placeholder" />
+
+                    <ImageView
+                        android:id="@+id/candidate2"
+                        android:layout_width="0dp"
+                        android:layout_height="90dp"
+                        android:layout_weight="1"
+                        android:layout_marginEnd="6dp"
+                        android:scaleType="centerCrop"
+                        android:background="@color/thumbnail_placeholder" />
+
+                    <ImageView
+                        android:id="@+id/candidate3"
+                        android:layout_width="0dp"
+                        android:layout_height="90dp"
+                        android:layout_weight="1"
+                        android:layout_marginEnd="6dp"
+                        android:scaleType="centerCrop"
+                        android:background="@color/thumbnail_placeholder" />
+
+                    <ImageView
+                        android:id="@+id/candidate4"
+                        android:layout_width="0dp"
+                        android:layout_height="90dp"
+                        android:layout_weight="1"
+                        android:scaleType="centerCrop"
+                        android:background="@color/thumbnail_placeholder" />
+
+                </LinearLayout>
 
             </LinearLayout>
+
+            <Button
+                android:id="@+id/choosePhotoButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="24dp"
+                android:text="@string/choose_photo" />
 
             <TextView
                 android:layout_width="wrap_content"

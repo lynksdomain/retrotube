@@ -9,6 +9,8 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.util.LruCache
+import android.view.animation.AlphaAnimation
+import android.view.animation.Animation
 import android.widget.ImageView
 import com.retrotube.app.network.NetworkShare
 import com.retrotube.app.network.NetworkShareRepository
@@ -74,11 +76,14 @@ object ThumbnailLoader {
 
         val memCached = memoryCache.get(key)
         if (memCached != null) {
+            imageView.clearAnimation()
+            imageView.alpha = 1f
             imageView.setImageBitmap(memCached)
             return
         }
 
         imageView.setImageDrawable(null)
+        startLoadingPulse(imageView)
         val diskFile = diskCacheFile(context, key)
         val future = decodeExecutor.submit(Callable {
             val fromDisk = if (diskFile.exists()) {
@@ -105,10 +110,24 @@ object ThumbnailLoader {
             }
             mainHandler.post {
                 if (imageView.tag == key) {
+                    imageView.clearAnimation()
+                    imageView.alpha = 1f
                     imageView.setImageBitmap(bitmap)
                 }
             }
         }
+    }
+
+    /** A slow breathing fade on the placeholder itself -- distinguishes "still working
+     *  on it" from a poster that just happens to be a dark or black frame, which the
+     *  static placeholder color alone couldn't. */
+    private fun startLoadingPulse(view: ImageView) {
+        val animation = AlphaAnimation(0.35f, 0.85f).apply {
+            duration = 650
+            repeatMode = Animation.REVERSE
+            repeatCount = Animation.INFINITE
+        }
+        view.startAnimation(animation)
     }
 
     private fun diskCacheFile(context: Context, key: String): File {

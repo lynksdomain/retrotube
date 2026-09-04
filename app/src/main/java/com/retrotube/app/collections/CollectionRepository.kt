@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.LruCache
+import com.retrotube.app.library.ImageUtils
 import java.io.File
 import java.io.FileOutputStream
 import java.util.UUID
@@ -87,27 +88,12 @@ class CollectionRepository(private val context: Context) {
      *  phone photo is far more pixels than a poster card will ever need, and would
      *  otherwise sit fully decoded in memory for every visible collection card. */
     fun setPosterFromUri(collectionId: String, uri: Uri): Boolean {
-        val bitmap = decodeSampledBitmap(uri) ?: return false
+        val bitmap = ImageUtils.decodeSampledBitmap(context, uri) ?: return false
         val file = File(posterDir, "$collectionId.png")
         FileOutputStream(file).use { out -> bitmap.compress(Bitmap.CompressFormat.PNG, 100, out) }
         prefs.edit().putString(posterKey(collectionId), file.absolutePath).apply()
         posterCache.put(collectionId, bitmap)
         return true
-    }
-
-    private fun decodeSampledBitmap(uri: Uri): Bitmap? {
-        val resolver = context.contentResolver
-        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) } ?: return null
-
-        var sampleSize = 1
-        val maxDimension = 720
-        while (bounds.outWidth / sampleSize > maxDimension || bounds.outHeight / sampleSize > maxDimension) {
-            sampleSize *= 2
-        }
-
-        val decodeOptions = BitmapFactory.Options().apply { inSampleSize = sampleSize }
-        return resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, decodeOptions) }
     }
 
     private fun videoUris(id: String): List<String> =
