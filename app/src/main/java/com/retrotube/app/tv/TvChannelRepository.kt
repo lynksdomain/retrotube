@@ -123,8 +123,24 @@ class TvChannelRepository(
         return if (lastWatchedIndex >= 0) lastWatchedIndex else 0
     }
 
+    /** Resets to 0 whenever the index actually changes -- a new video within the
+     *  channel has nothing to resume, only flipping back to the same one does. */
     fun setCurrentIndex(channelId: String, index: Int) {
-        prefs.edit().putInt(indexKey(channelId), index).apply()
+        val previous = prefs.getInt(indexKey(channelId), -1)
+        prefs.edit().apply {
+            putInt(indexKey(channelId), index)
+            if (previous != index) putLong(positionKey(channelId), 0L)
+        }.apply()
+    }
+
+    /** Mid-video position within a channel's current video -- separate from
+     *  [PlaybackProgressRepository] entirely, so flipping between channels never
+     *  touches Continue Watching, but flipping back to a channel you tuned away
+     *  from still picks up where you left off instead of restarting the episode. */
+    fun getSavedPositionMs(channelId: String): Long = prefs.getLong(positionKey(channelId), 0L)
+
+    fun setSavedPositionMs(channelId: String, positionMs: Long) {
+        prefs.edit().putLong(positionKey(channelId), positionMs).apply()
     }
 
     fun getLastChannelId(): String? = prefs.getString("last_channel_id", null)
@@ -134,4 +150,5 @@ class TvChannelRepository(
     }
 
     private fun indexKey(channelId: String) = "channel_${channelId}_index"
+    private fun positionKey(channelId: String) = "channel_${channelId}_position_ms"
 }

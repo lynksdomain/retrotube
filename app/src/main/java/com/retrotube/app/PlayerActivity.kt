@@ -158,17 +158,18 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     private fun playTvVideo(channel: TvChannel, videoIndex: Int) {
-        saveProgress()
         releasePlayer()
         val video = channel.videos[videoIndex]
         videoUri = video.uri
         tvChannelRepository.setCurrentIndex(channel.id, videoIndex)
         tvChannelRepository.setLastChannelId(channel.id)
 
-        val exoPlayer = createPlayer(video.uri, VideoEffectSettings.TV_MODE, autoAdvanceOnEnd = true)
+        // Only nonzero if we're returning to the same video within this channel --
+        // setCurrentIndex above already reset it to 0 if this is a new video.
+        val resumePositionMs = tvChannelRepository.getSavedPositionMs(channel.id)
+        val exoPlayer = createPlayer(video.uri, VideoEffectSettings.TV_MODE, autoAdvanceOnEnd = true, resumePositionMs)
         player = exoPlayer
         progressHandler.postDelayed(progressSaver, PROGRESS_SAVE_INTERVAL_MS)
-
     }
 
     /** A manual channel flip gets a beat of tuner static before the next channel
@@ -179,6 +180,10 @@ class PlayerActivity : AppCompatActivity() {
      *  it's not part of the tap-to-reveal transport controls. */
     private fun changeChannel(direction: Int) {
         if (tvChannels.isEmpty()) return
+        // Must happen before tvChannelIndex moves -- saveProgress() attributes the
+        // still-playing old video's position to whatever channel tvChannelIndex
+        // currently points at.
+        saveProgress()
         tvChannelIndex = (tvChannelIndex + direction).mod(tvChannels.size)
         showTvControls()
 
@@ -243,6 +248,7 @@ class PlayerActivity : AppCompatActivity() {
         if (videoIndex >= 0) {
             tvChannelRepository.setCurrentIndex(channel.id, videoIndex)
         }
+        saveProgress()
     }
 
     private fun initializePlayer() {
@@ -250,14 +256,17 @@ class PlayerActivity : AppCompatActivity() {
         videoUri = uri
         val settings = VideoEffectSettings.deserialize(intent.getStringExtra(EXTRA_SETTINGS))
             ?: VideoEffectSettings.DEFAULT
-        player = createPlayer(uri, settings, autoAdvanceOnEnd = false)
+        val resumePositionMs = progressRepository.getProgress(uri.toString())?.positionMs
+        player = createPlayer(uri, settings, autoAdvanceOnEnd = false, resumePositionMs)
         progressHandler.postDelayed(progressSaver, PROGRESS_SAVE_INTERVAL_MS)
     }
 
     /** Shared by normal playback and TV mode: builds the player, wires the shader
      *  effects + compare button, resume-from-progress, ambient dimming (skipped in
-     *  TV mode, which has no pause), and error handling. */
-    private fun createPlayer(uri: Uri, settings: VideoEffectSettings, autoAdvanceOnEnd: Boolean): ExoPlayer {
+     *  TV mode, which has no pause), and error handling. [resumePositionMs] comes
+     *  from Continue Watching for normal playback, or from the TV channel's own
+     *  saved position for TV mode -- the two never read each other's store. */
+    private fun createPlayer(uri: Uri, settings: VideoEffectSettings, autoAdvanceOnEnd: Boolean, resumePositionMs: Long?): ExoPlayer {
         val exoPlayer = ExoPlayer.Builder(this).build()
         binding.playerView.player = exoPlayer
         binding.playerView.resizeMode = settings.aspectMode
@@ -300,14 +309,13 @@ class PlayerActivity : AppCompatActivity() {
             }
         }
 
-        val savedProgress = progressRepository.getProgress(uri.toString())
         var hasResumed = false
 
         exoPlayer.addListener(object : Player.Listener {
             override fun onPlaybackStateChanged(playbackState: Int) {
-                if (playbackState == Player.STATE_READY && savedProgress != null && !hasResumed) {
+                if (playbackState == Player.STATE_READY && resumePositionMs != null && resumePositionMs > 0 && !hasResumed) {
                     hasResumed = true
-                    exoPlayer.seekTo(savedProgress.positionMs)
+                    exoPlayer.seekTo(resumePositionMs)
                 }
                 if (playbackState == Player.STATE_ENDED && autoAdvanceOnEnd) {
                     advanceWithinChannel()
@@ -351,15 +359,23 @@ class PlayerActivity : AppCompatActivity() {
         return exoPlayer
     }
 
+    /** In TV mode this saves into the current channel's own position store (see
+     *  [TvChannelRepository]) instead of Continue Watching -- TV mode has no
+     *  resume/scrub UI of its own, so writing into Continue Watching here would
+     *  just quietly seed that rail with whatever channel happened to be playing,
+     *  not something the user chose to watch. The channel-position store exists
+     *  so flipping back to a channel still resumes it instead of restarting. */
     private fun saveProgress() {
-        // TV mode has no Continue Watching entry point (no scrub/resume UI at all),
-        // so writing progress here would just quietly seed the rail with whatever
-        // channel happened to be playing -- not something the user chose to watch.
-        if (isTvMode) return
-        val uri = videoUri ?: return
         val exoPlayer = player ?: return
         if (exoPlayer.duration <= 0) return
-        progressRepository.saveProgress(uri.toString(), exoPlayer.currentPosition, exoPlayer.duration)
+        if (isTvMode) {
+            tvChannels.getOrNull(tvChannelIndex)?.let {
+                tvChannelRepository.setSavedPositionMs(it.id, exoPlayer.currentPosition)
+            }
+        } else {
+            val uri = videoUri ?: return
+            progressRepository.saveProgress(uri.toString(), exoPlayer.currentPosition, exoPlayer.duration)
+        }
     }
 
     private fun releasePlayer() {
