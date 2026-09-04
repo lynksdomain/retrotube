@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RetroTube Privacy Policy</title>
+<style>
+  body { background:#0B0B14; color:#F2F2F5; font-family: -apple-system, Segoe UI, Roboto, sans-serif; max-width: 720px; margin: 0 auto; padding: 48px 24px 96px; line-height: 1.6; }
+  h1 { color:#2FE6D0; font-size: 28px; }
+  h2 { color:#2FE6D0; font-size: 18px; margin-top: 40px; }
+  a { color:#2FE6D0; }
+  .updated { color:#9098A6; font-size: 14px; }
+  code { background:#1A1A26; padding: 2px 6px; border-radius: 4px; }
+</style>
+</head>
+<body>
+  <h1>RetroTube Privacy Policy</h1>
+  <p class="updated">Last updated: September 2026</p>
+
+  <p>RetroTube is a local video player. It does not have accounts, does not run ads, and does not include any analytics, tracking, or crash-reporting SDKs. This page explains, plainly, what the app does and doesn't do with your data.</p>
+
+  <h2>What RetroTube accesses</h2>
+  <ul>
+    <li><strong>Video files you choose.</strong> RetroTube only reads folders you explicitly grant it access to via Android's Storage Access Framework. It never scans your device's storage on its own.</li>
+    <li><strong>Network shares you connect.</strong> If you add an SMB/NAS share, RetroTube connects directly to the host and share you enter (address, share name, username/password). That connection is used only to browse and play files from that share.</li>
+  </ul>
+
+  <h2>What RetroTube stores, and where</h2>
+  <ul>
+    <li><strong>Everything stays on your device.</strong> RetroTube has no backend server. Library folders, playback progress, custom titles/tags/posters, collections, TV Mode channel setup, and shader preferences are all stored locally in the app's own private storage.</li>
+    <li><strong>Network share credentials</strong> (host, share name, username, password) are stored on-device using Android's <code>EncryptedSharedPreferences</code> (AES-256-GCM, key held in the Android Keystore) — never in plain text, and never sent anywhere except directly to the share you configured.</li>
+  </ul>
+
+  <h2>What RetroTube never does</h2>
+  <ul>
+    <li>No account creation or sign-in.</li>
+    <li>No analytics, telemetry, or usage tracking of any kind.</li>
+    <li>No ads or ad SDKs.</li>
+    <li>No data is ever sent to RetroTube's developer or any third party. There is no server to send it to.</li>
+  </ul>
+
+  <h2>Permissions</h2>
+  <p>RetroTube requests <code>INTERNET</code> only to reach an SMB share you explicitly connect to on your own local network — never anything beyond that. It does not request broad storage permissions; local video access goes through per-folder Storage Access Framework grants that you approve individually.</p>
+
+  <h2>Open source</h2>
+  <p>RetroTube is open source (GPL-3.0). You're welcome to read the actual source code — including everything described above — at <a href="https://github.com/lynksdomain/retrotube">github.com/lynksdomain/retrotube</a>.</p>
+
+  <h2>Contact</h2>
+  <p>Questions about this policy can be raised as an issue on the <a href="https://github.com/lynksdomain/retrotube/issues">GitHub issue tracker</a>.</p>
+</body>
+</html>

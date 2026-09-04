@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="500" viewBox="0 0 1024 500">
+  <defs>
+    <radialGradient id="glow" cx="230" cy="180" r="420" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#163430"/>
+      <stop offset="100%" stop-color="#0B0B14" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="scan" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2FE6D0" stop-opacity="0.05"/>
+      <stop offset="50%" stop-color="#2FE6D0" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#2FE6D0" stop-opacity="0.05"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="0" y="0" width="1024" height="500" fill="#0B0B14"/>
+  <rect x="0" y="0" width="1024" height="500" fill="url(#glow)"/>
+
+  <!-- faint full-bleed scanlines -->
+  <g opacity="0.5">
+    <rect x="0" y="0" width="1024" height="500" fill="url(#scan)"/>
+  </g>
+  <g stroke="#2FE6D0" stroke-width="1" opacity="0.06">
+    <line x1="0" y1="40" x2="1024" y2="40"/>
+    <line x1="0" y1="90" x2="1024" y2="90"/>
+    <line x1="0" y1="140" x2="1024" y2="140"/>
+    <line x1="0" y1="190" x2="1024" y2="190"/>
+    <line x1="0" y1="240" x2="1024" y2="240"/>
+    <line x1="0" y1="290" x2="1024" y2="290"/>
+    <line x1="0" y1="340" x2="1024" y2="340"/>
+    <line x1="0" y1="390" x2="1024" y2="390"/>
+    <line x1="0" y1="440" x2="1024" y2="440"/>
+  </g>
+
+  <!-- TV mark, scaled + translated from the 108x108 icon artwork -->
+  <g transform="translate(90,120) scale(2.2)">
+    <path d="M42,30 L29,15" stroke="#2FE6D0" stroke-width="3" stroke-linecap="round" fill="none"/>
+    <path d="M66,30 L79,15" stroke="#2FE6D0" stroke-width="3" stroke-linecap="round" fill="none"/>
+    <circle cx="29" cy="15" r="4" fill="#2FE6D0"/>
+    <circle cx="79" cy="15" r="4" fill="#2FE6D0"/>
+    <ellipse cx="54" cy="26" rx="7" ry="4" fill="#0B0B14" stroke="#2FE6D0" stroke-width="2.5"/>
+    <rect x="15" y="31" width="78" height="67" rx="9" fill="#0B0B14" stroke="#2FE6D0" stroke-width="3"/>
+    <rect x="23" y="39" width="62" height="46" rx="6" fill="#0B0B14" stroke="#2FE6D0" stroke-width="2"/>
+    <rect x="23" y="48" width="62" height="1.6" fill="#2FE6D0" opacity="0.18"/>
+    <rect x="23" y="55" width="62" height="1.6" fill="#2FE6D0" opacity="0.18"/>
+    <rect x="23" y="62" width="62" height="1.6" fill="#2FE6D0" opacity="0.18"/>
+    <rect x="23" y="69" width="62" height="1.6" fill="#2FE6D0" opacity="0.18"/>
+    <rect x="23" y="76" width="62" height="1.6" fill="#2FE6D0" opacity="0.18"/>
+    <path d="M45,47 L45,71 L67,59 Z" fill="#F2F2F5"/>
+    <rect x="23" y="87" width="20" height="1.8" fill="#2FE6D0"/>
+    <rect x="23" y="90.5" width="20" height="1.8" fill="#2FE6D0"/>
+    <rect x="23" y="94" width="20" height="1.8" fill="#2FE6D0"/>
+    <circle cx="69" cy="91.5" r="3" fill="#2FE6D0"/>
+    <circle cx="77.5" cy="91.5" r="3" fill="#2FE6D0"/>
+    <circle cx="86" cy="91.5" r="3" fill="#2FE6D0"/>
+  </g>
+
+  <!-- Wordmark -->
+  <text x="470" y="270" font-family="monospace" font-size="88" font-weight="bold" fill="#F2F2F5">RetroTube</text>
+  <text x="472" y="320" font-family="monospace" font-size="26" fill="#2FE6D0" letter-spacing="1">REAL CRT SHADERS FOR YOUR VIDEOS</text>
+</svg>

@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 108 108">
+  <defs>
+    <radialGradient id="glow" cx="54" cy="40" r="76" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#163430"/>
+      <stop offset="100%" stop-color="#163430" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect x="0" y="0" width="108" height="108" fill="#0B0B14"/>
+  <rect x="0" y="0" width="108" height="108" fill="url(#glow)"/>
+
+  <!-- Antenna -->
+  <path d="M42,30 L29,15" stroke="#2FE6D0" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <path d="M66,30 L79,15" stroke="#2FE6D0" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <circle cx="29" cy="15" r="4" fill="#2FE6D0"/>
+  <circle cx="79" cy="15" r="4" fill="#2FE6D0"/>
+  <ellipse cx="54" cy="26" rx="7" ry="4" fill="#0B0B14" stroke="#2FE6D0" stroke-width="2.5"/>
+
+  <!-- TV body -->
+  <rect x="15" y="31" width="78" height="67" rx="9" fill="#0B0B14" stroke="#2FE6D0" stroke-width="3"/>
+
+  <!-- Screen bezel -->
+  <rect x="23" y="39" width="62" height="46" rx="6" fill="#0B0B14" stroke="#2FE6D0" stroke-width="2"/>
+
+  <!-- Scanlines -->
+  <rect x="23" y="48" width="62" height="1.6" fill="#2FE6D0" opacity="0.18"/>
+  <rect x="23" y="55" width="62" height="1.6" fill="#2FE6D0" opacity="0.18"/>
+  <rect x="23" y="62" width="62" height="1.6" fill="#2FE6D0" opacity="0.18"/>
+  <rect x="23" y="69" width="62" height="1.6" fill="#2FE6D0" opacity="0.18"/>
+  <rect x="23" y="76" width="62" height="1.6" fill="#2FE6D0" opacity="0.18"/>
+
+  <!-- Play triangle -->
+  <path d="M45,47 L45,71 L67,59 Z" fill="#F2F2F5"/>
+
+  <!-- Bottom control strip -->
+  <rect x="23" y="87" width="20" height="1.8" fill="#2FE6D0"/>
+  <rect x="23" y="90.5" width="20" height="1.8" fill="#2FE6D0"/>
+  <rect x="23" y="94" width="20" height="1.8" fill="#2FE6D0"/>
+  <circle cx="69" cy="91.5" r="3" fill="#2FE6D0"/>
+  <circle cx="77.5" cy="91.5" r="3" fill="#2FE6D0"/>
+  <circle cx="86" cy="91.5" r="3" fill="#2FE6D0"/>
+</svg>

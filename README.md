@@ -86,6 +86,10 @@ Requires the Android SDK (compileSdk 36) and JDK 17.
 
 The debug APK will be at `app/build/outputs/apk/debug/app-debug.apk`.
 
+## Privacy
+
+RetroTube has no accounts, no ads, and no analytics — everything it does happens on your device. See the [privacy policy](https://lynksdomain.github.io/retrotube/privacy-policy.html) for details.
+
 ## License
 
 GPL-3.0. See [LICENSE](LICENSE). Contributions and forks are welcome; derivative works distributed publicly must also stay open source under the same license.
