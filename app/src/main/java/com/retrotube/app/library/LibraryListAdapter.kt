@@ -16,6 +16,7 @@ import com.retrotube.app.databinding.ItemContinueWatchingRailBinding
 import com.retrotube.app.databinding.ItemFolderBinding
 import com.retrotube.app.databinding.ItemVideoBinding
 import com.retrotube.app.metadata.VideoMetadataRepository
+import com.retrotube.app.network.NetworkShareRepository
 import com.retrotube.app.progress.PlaybackProgressRepository
 import com.retrotube.app.settings.SettingsRepository
 
@@ -43,6 +44,7 @@ class LibraryListAdapter(
     private val settingsRepository = SettingsRepository(context)
     private val metadataRepository = VideoMetadataRepository(context)
     private val collectionRepository = CollectionRepository(context)
+    private val networkShareRepository = NetworkShareRepository(context)
 
     private var items: List<LibraryItem> = emptyList()
     private var isRootLevel: Boolean = false
@@ -143,14 +145,15 @@ class LibraryListAdapter(
             }
             is LibraryItem.SmbVideoItem -> {
                 holder as VideoViewHolder
+                val uriString = item.uri.toString()
                 bindVideoCard(
                     holder,
-                    uriString = item.uri.toString(),
+                    uriString = uriString,
                     displayName = item.displayName,
                     locationHint = item.locationHint,
-                    // Frame thumbnails aren't wired up for SMB videos yet -- MediaMetadataRetriever
-                    // has no notion of our custom DataSource, so these just keep the placeholder.
-                    loadThumbnail = null,
+                    loadThumbnail = { imageView ->
+                        ThumbnailLoader.loadSmb(context, networkShareRepository, uriString, item.shareId, item.relativePath, imageView)
+                    },
                     onClick = { onSmbVideoClick(item) },
                     onMenuClick = { anchor -> onSmbVideoMenuClick(item, anchor) },
                 )
