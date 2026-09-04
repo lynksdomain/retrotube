@@ -4,16 +4,23 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.view.WindowManager
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.media3.common.Effect
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import com.retrotube.app.databinding.ActivityPlayerBinding
+import com.retrotube.app.network.NetworkShareRepository
+import com.retrotube.app.network.SmbDataSource
+import com.retrotube.app.network.SmbUri
 import com.retrotube.app.progress.PlaybackProgressRepository
 import com.retrotube.app.settings.VideoEffectSettings
 import com.retrotube.app.shader.CrtGlEffect
@@ -141,9 +148,24 @@ class PlayerActivity : AppCompatActivity() {
                     ambientHandler.postDelayed(showAmbient, AMBIENT_IDLE_DELAY_MS)
                 }
             }
+
+            override fun onPlayerError(error: PlaybackException) {
+                Log.e("PlayerActivity", "Playback failed for $uri", error)
+                Toast.makeText(
+                    this@PlayerActivity,
+                    getString(R.string.playback_failed, error.cause?.message ?: error.message),
+                    Toast.LENGTH_LONG,
+                ).show()
+            }
         })
 
-        exoPlayer.setMediaItem(MediaItem.fromUri(uri))
+        if (SmbUri.parse(uri) != null) {
+            val mediaSource = ProgressiveMediaSource.Factory(SmbDataSource.Factory(NetworkShareRepository(this)))
+                .createMediaSource(MediaItem.fromUri(uri))
+            exoPlayer.setMediaSource(mediaSource)
+        } else {
+            exoPlayer.setMediaItem(MediaItem.fromUri(uri))
+        }
         exoPlayer.prepare()
         exoPlayer.playWhenReady = true
 

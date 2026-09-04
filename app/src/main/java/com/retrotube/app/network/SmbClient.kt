@@ -14,7 +14,7 @@ import java.util.Properties
  */
 object SmbClient {
 
-    private fun contextFor(share: NetworkShare): CIFSContext {
+    fun contextFor(share: NetworkShare): CIFSContext {
         val props = Properties().apply {
             // Modern macOS/Samba speak SMB2/3; SMB1 is legacy and left out entirely.
             setProperty("jcifs.smb.client.minVersion", "SMB202")

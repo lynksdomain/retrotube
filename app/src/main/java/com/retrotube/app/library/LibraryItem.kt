@@ -1,6 +1,8 @@
 package com.retrotube.app.library
 
+import android.net.Uri
 import androidx.documentfile.provider.DocumentFile
+import com.retrotube.app.network.SmbUri
 
 sealed class LibraryItem {
     data class FolderItem(val document: DocumentFile, val name: String) : LibraryItem()
@@ -37,4 +39,28 @@ sealed class LibraryItem {
     /** A full-width label separating the root grid into Collections vs. Library --
      *  only ever included alongside at least one item of that kind, never on its own. */
     data class SectionHeader(val title: String) : LibraryItem()
+
+    /** A folder inside (or the root of) a connected SMB share. An empty [relativePath]
+     *  means this card represents the share itself, shown at the library root. */
+    data class SmbFolderItem(val shareId: String, val relativePath: String, val name: String) : LibraryItem()
+
+    /** A video file inside a connected SMB share -- carries no DocumentFile, since SAF
+     *  has no part in reaching it; [uri] is what every existing per-video repository
+     *  (progress, settings, custom metadata, collections) keys off of instead. */
+    data class SmbVideoItem(
+        val shareId: String,
+        val relativePath: String,
+        val name: String,
+        val locationHint: String = "",
+    ) : LibraryItem() {
+        val uri: Uri get() = SmbUri.build(shareId, relativePath)
+
+        val displayName: String
+            get() = name
+                .substringBeforeLast('.')
+                .replace('_', ' ')
+                .replace('.', ' ')
+                .replace(Regex("\\s+"), " ")
+                .trim()
+    }
 }

@@ -42,6 +42,7 @@
     <string name="remove_collection_title">Delete \"%1$s\"?</string>
     <string name="remove_collection_message">This only removes the collection -- your files are untouched.</string>
     <string name="collections_section_title">Collections</string>
+    <string name="network_section_title">Network</string>
     <string name="library_section_title">Library</string>
     <string name="network_shares_title">Network Shares</string>
     <string name="no_network_shares">No network shares yet. Connect to a NAS or a computer sharing files over SMB.</string>
@@ -54,6 +55,7 @@
     <string name="connect">Connect</string>
     <string name="connecting">Connecting…</string>
     <string name="connection_failed">Couldn\'t connect: %1$s</string>
+    <string name="playback_failed">Playback failed: %1$s</string>
     <string name="connection_succeeded">Connected -- found %1$d item(s)</string>
     <string name="remove_share_title">Remove \"%1$s\"?</string>
     <string name="remove_share_message">This only forgets the connection -- nothing on the share is touched.</string>

@@ -33,6 +33,10 @@ class LibraryListAdapter(
     private val onCollectionClick: (LibraryItem.CollectionItem) -> Unit,
     private val onCollectionRemoveClick: (LibraryItem.CollectionItem) -> Unit,
     private val onCollectionEditPosterClick: (LibraryItem.CollectionItem) -> Unit,
+    private val onSmbFolderClick: (LibraryItem.SmbFolderItem) -> Unit,
+    private val onSmbShareRemoveClick: (LibraryItem.SmbFolderItem) -> Unit,
+    private val onSmbVideoClick: (LibraryItem.SmbVideoItem) -> Unit,
+    private val onSmbVideoMenuClick: (LibraryItem.SmbVideoItem, View) -> Unit,
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     private val progressRepository = PlaybackProgressRepository(context)
@@ -73,8 +77,8 @@ class LibraryListAdapter(
         }
 
     override fun getItemViewType(position: Int): Int = when (items[position]) {
-        is LibraryItem.FolderItem -> VIEW_TYPE_FOLDER
-        is LibraryItem.VideoItem -> VIEW_TYPE_VIDEO
+        is LibraryItem.FolderItem, is LibraryItem.SmbFolderItem -> VIEW_TYPE_FOLDER
+        is LibraryItem.VideoItem, is LibraryItem.SmbVideoItem -> VIEW_TYPE_VIDEO
         is LibraryItem.ContinueWatchingRail -> VIEW_TYPE_CONTINUE_WATCHING_RAIL
         is LibraryItem.CollectionItem -> VIEW_TYPE_COLLECTION
         is LibraryItem.SectionHeader -> VIEW_TYPE_SECTION_HEADER
@@ -110,40 +114,46 @@ class LibraryListAdapter(
                     holder.binding.removeFolderButton.setOnClickListener(null)
                 }
             }
+            is LibraryItem.SmbFolderItem -> {
+                holder as FolderViewHolder
+                holder.binding.folderName.text = item.name
+                holder.binding.root.setOnClickListener { onSmbFolderClick(item) }
+                holder.binding.root.applySpringPress()
+                // Only the share's own root card (reached from the library root) is
+                // removable -- a subfolder inside a share is just something you browse.
+                if (item.relativePath.isEmpty()) {
+                    holder.binding.removeFolderButton.visibility = View.VISIBLE
+                    holder.binding.removeFolderButton.setOnClickListener { onSmbShareRemoveClick(item) }
+                } else {
+                    holder.binding.removeFolderButton.visibility = View.GONE
+                    holder.binding.removeFolderButton.setOnClickListener(null)
+                }
+            }
             is LibraryItem.VideoItem -> {
                 holder as VideoViewHolder
-                val uriString = item.document.uri.toString()
-                holder.binding.videoName.text = metadataRepository.getCustomTitle(uriString) ?: item.displayName
-                holder.binding.presetBadge.text =
-                    settingsRepository.effectiveSettings(uriString).preset.label
-                if (item.locationHint.isNotBlank()) {
-                    holder.binding.videoLocationHint.visibility = View.VISIBLE
-                    holder.binding.videoLocationHint.text = item.locationHint
-                } else {
-                    holder.binding.videoLocationHint.visibility = View.GONE
-                }
-                val customThumbnail = metadataRepository.getCustomThumbnail(uriString)
-                if (customThumbnail != null) {
-                    holder.binding.videoThumbnail.setImageBitmap(customThumbnail)
-                } else {
-                    ThumbnailLoader.load(context, item.document.uri, holder.binding.videoThumbnail)
-                }
-                holder.binding.root.setOnClickListener { onVideoClick(item) }
-                holder.binding.root.applySpringPress()
-                holder.binding.videoMenuButton.setOnClickListener {
-                    onVideoMenuClick(item, holder.binding.videoMenuButton)
-                }
-
-                val progress = progressRepository.getProgress(item.document.uri.toString())
-                if (progress != null) {
-                    holder.binding.progressBarTrack.visibility = View.VISIBLE
-                    holder.binding.progressBarFill.visibility = View.VISIBLE
-                    holder.binding.progressBarFill.pivotX = 0f
-                    holder.binding.progressBarFill.scaleX = progress.fraction.coerceIn(0f, 1f)
-                } else {
-                    holder.binding.progressBarTrack.visibility = View.GONE
-                    holder.binding.progressBarFill.visibility = View.GONE
-                }
+                bindVideoCard(
+                    holder,
+                    uriString = item.document.uri.toString(),
+                    displayName = item.displayName,
+                    locationHint = item.locationHint,
+                    loadThumbnail = { imageView -> ThumbnailLoader.load(context, item.document.uri, imageView) },
+                    onClick = { onVideoClick(item) },
+                    onMenuClick = { anchor -> onVideoMenuClick(item, anchor) },
+                )
+            }
+            is LibraryItem.SmbVideoItem -> {
+                holder as VideoViewHolder
+                bindVideoCard(
+                    holder,
+                    uriString = item.uri.toString(),
+                    displayName = item.displayName,
+                    locationHint = item.locationHint,
+                    // Frame thumbnails aren't wired up for SMB videos yet -- MediaMetadataRetriever
+                    // has no notion of our custom DataSource, so these just keep the placeholder.
+                    loadThumbnail = null,
+                    onClick = { onSmbVideoClick(item) },
+                    onMenuClick = { anchor -> onSmbVideoMenuClick(item, anchor) },
+                )
             }
             is LibraryItem.ContinueWatchingRail -> {
                 holder as RailViewHolder
@@ -171,6 +181,50 @@ class LibraryListAdapter(
                 holder as SectionHeaderViewHolder
                 holder.textView.text = item.title
             }
+        }
+    }
+
+    /** Shared bind logic for both SAF and SMB video cards -- everything about the poster
+     *  (title, badge, resume progress, custom overrides) is keyed off the URI string, so
+     *  the only real difference between the two is how (or whether) a thumbnail loads. */
+    private fun bindVideoCard(
+        holder: VideoViewHolder,
+        uriString: String,
+        displayName: String,
+        locationHint: String,
+        loadThumbnail: ((android.widget.ImageView) -> Unit)?,
+        onClick: () -> Unit,
+        onMenuClick: (View) -> Unit,
+    ) {
+        holder.binding.videoName.text = metadataRepository.getCustomTitle(uriString) ?: displayName
+        holder.binding.presetBadge.text = settingsRepository.effectiveSettings(uriString).preset.label
+        if (locationHint.isNotBlank()) {
+            holder.binding.videoLocationHint.visibility = View.VISIBLE
+            holder.binding.videoLocationHint.text = locationHint
+        } else {
+            holder.binding.videoLocationHint.visibility = View.GONE
+        }
+
+        val customThumbnail = metadataRepository.getCustomThumbnail(uriString)
+        when {
+            customThumbnail != null -> holder.binding.videoThumbnail.setImageBitmap(customThumbnail)
+            loadThumbnail != null -> loadThumbnail(holder.binding.videoThumbnail)
+            else -> holder.binding.videoThumbnail.setImageDrawable(null)
+        }
+
+        holder.binding.root.setOnClickListener { onClick() }
+        holder.binding.root.applySpringPress()
+        holder.binding.videoMenuButton.setOnClickListener { onMenuClick(holder.binding.videoMenuButton) }
+
+        val progress = progressRepository.getProgress(uriString)
+        if (progress != null) {
+            holder.binding.progressBarTrack.visibility = View.VISIBLE
+            holder.binding.progressBarFill.visibility = View.VISIBLE
+            holder.binding.progressBarFill.pivotX = 0f
+            holder.binding.progressBarFill.scaleX = progress.fraction.coerceIn(0f, 1f)
+        } else {
+            holder.binding.progressBarTrack.visibility = View.GONE
+            holder.binding.progressBarFill.visibility = View.GONE
         }
     }
 

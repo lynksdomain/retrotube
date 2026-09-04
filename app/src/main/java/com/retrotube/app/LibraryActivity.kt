@@ -2,6 +2,7 @@ package com.retrotube.app
 
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -9,6 +10,7 @@ import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.PopupMenu
+import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AlertDialog
 import androidx.activity.result.contract.ActivityResultContracts
@@ -22,8 +24,11 @@ import com.retrotube.app.databinding.ActivityLibraryBinding
 import com.retrotube.app.library.LibraryItem
 import com.retrotube.app.library.LibraryListAdapter
 import com.retrotube.app.library.LibraryRepository
+import com.retrotube.app.network.NetworkShareRepository
+import com.retrotube.app.network.SmbBrowser
 import com.retrotube.app.progress.PlaybackProgressRepository
 import com.retrotube.app.settings.SettingsRepository
+import java.util.concurrent.Executors
 
 class LibraryActivity : AppCompatActivity() {
 
@@ -37,7 +42,10 @@ class LibraryActivity : AppCompatActivity() {
     private lateinit var settingsRepository: SettingsRepository
     private lateinit var progressRepository: PlaybackProgressRepository
     private lateinit var collectionRepository: CollectionRepository
+    private lateinit var networkShareRepository: NetworkShareRepository
     private lateinit var adapter: LibraryListAdapter
+    private val smbExecutor = Executors.newSingleThreadExecutor()
+    private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
 
     /** Empty = showing the top-level list of added root folders. */
     private val folderStack = mutableListOf<DocumentFile>()
@@ -46,6 +54,15 @@ class LibraryActivity : AppCompatActivity() {
      *  Mutually exclusive with [folderStack] -- collections only open from the root. */
     private var openCollectionId: String? = null
     private var openCollectionName: String = ""
+
+    /** Non-null = browsing inside a connected SMB share. [openSmbPath] is the relative
+     *  path within that share ("" = the share's own root); popping a segment off it (or
+     *  clearing [openSmbShareId] once it's already empty) is "back", same shape as
+     *  [folderStack] but as a single path string since SMB has no DocumentFile chain
+     *  to walk. */
+    private var openSmbShareId: String? = null
+    private var openSmbPath: String = ""
+    private var openSmbShareName: String = ""
 
     /** URIs currently shown in the Continue Watching rail, so the "⋮" menu knows whether
      *  to offer "Remove from Continue Watching" or just go straight to settings. */
@@ -83,6 +100,7 @@ class LibraryActivity : AppCompatActivity() {
         settingsRepository = SettingsRepository(this)
         progressRepository = PlaybackProgressRepository(this)
         collectionRepository = CollectionRepository(this)
+        networkShareRepository = NetworkShareRepository(this)
 
         adapter = LibraryListAdapter(
             context = this,
@@ -100,6 +118,15 @@ class LibraryActivity : AppCompatActivity() {
                 pendingPosterCollectionId = collection.id
                 pickCollectionPoster.launch("image/*")
             },
+            onSmbFolderClick = { folder ->
+                openSmbShareId = folder.shareId
+                openSmbPath = folder.relativePath
+                openSmbShareName = networkShareRepository.get(folder.shareId)?.displayName.orEmpty()
+                refreshList()
+            },
+            onSmbShareRemoveClick = { folder -> confirmRemoveShare(folder.shareId, folder.name) },
+            onSmbVideoClick = { video -> launchPlayerForUri(video.uri) },
+            onSmbVideoMenuClick = { video, anchor -> showSmbVideoMenu(video, anchor) },
         )
         val gridLayoutManager = GridLayoutManager(this, POSTER_GRID_SPAN_COUNT)
         gridLayoutManager.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
@@ -153,7 +180,7 @@ class LibraryActivity : AppCompatActivity() {
             this,
             object : OnBackPressedCallback(true) {
                 override fun handleOnBackPressed() {
-                    if (openCollectionId != null || folderStack.isNotEmpty()) {
+                    if (openCollectionId != null || openSmbShareId != null || folderStack.isNotEmpty()) {
                         navigateBack()
                     } else {
                         isEnabled = false
@@ -209,6 +236,14 @@ class LibraryActivity : AppCompatActivity() {
             openCollectionId = null
             openCollectionName = ""
             refreshList()
+        } else if (openSmbShareId != null) {
+            if (openSmbPath.isEmpty()) {
+                openSmbShareId = null
+                openSmbShareName = ""
+            } else {
+                openSmbPath = openSmbPath.substringBeforeLast('/', "")
+            }
+            refreshList()
         } else if (folderStack.isNotEmpty()) {
             folderStack.removeAt(folderStack.size - 1)
             refreshList()
@@ -220,6 +255,21 @@ class LibraryActivity : AppCompatActivity() {
      *  it isn't scoped to what you're currently browsing. It travels as the grid's first
      *  row rather than a pinned section, so it scrolls away with everything else. */
     private fun refreshList() {
+        val smbShareId = openSmbShareId
+        if (smbShareId != null) {
+            continueWatchingUris = emptySet()
+            binding.breadcrumbRow.visibility = View.VISIBLE
+            binding.breadcrumbText.text = if (openSmbPath.isEmpty()) {
+                openSmbShareName
+            } else {
+                "$openSmbShareName/$openSmbPath"
+            }
+            binding.sortButton.visibility = View.GONE
+            binding.editCollectionContentsButton.visibility = View.GONE
+            loadSmbFolderAsync(smbShareId, openSmbPath)
+            return
+        }
+
         val collectionId = openCollectionId
         val items: List<LibraryItem> = when {
             collectionId != null -> {
@@ -255,6 +305,16 @@ class LibraryActivity : AppCompatActivity() {
                     listOf(LibraryItem.SectionHeader(getString(R.string.collections_section_title))) + filteredCollections
                 }
 
+                val shares: List<LibraryItem> = networkShareRepository.getAll()
+                    .sortedBy { it.displayName.lowercase() }
+                    .map { LibraryItem.SmbFolderItem(it.id, "", it.displayName) }
+                val filteredShares = filterAndSort(shares)
+                val networkSection: List<LibraryItem> = if (filteredShares.isEmpty()) {
+                    emptyList()
+                } else {
+                    listOf(LibraryItem.SectionHeader(getString(R.string.network_section_title))) + filteredShares
+                }
+
                 val filteredFolders = filterAndSort(libraryRepository.getRootDocuments())
                 val librarySection: List<LibraryItem> = if (filteredFolders.isEmpty()) {
                     emptyList()
@@ -262,7 +322,7 @@ class LibraryActivity : AppCompatActivity() {
                     listOf(LibraryItem.SectionHeader(getString(R.string.library_section_title))) + filteredFolders
                 }
 
-                rail + collectionsSection + librarySection
+                rail + collectionsSection + networkSection + librarySection
             }
             else -> {
                 continueWatchingUris = emptySet()
@@ -294,6 +354,8 @@ class LibraryActivity : AppCompatActivity() {
                     is LibraryItem.FolderItem -> item.name
                     is LibraryItem.VideoItem -> item.name
                     is LibraryItem.CollectionItem -> item.name
+                    is LibraryItem.SmbFolderItem -> item.name
+                    is LibraryItem.SmbVideoItem -> item.name
                     is LibraryItem.ContinueWatchingRail -> ""
                     is LibraryItem.SectionHeader -> ""
                 }
@@ -307,6 +369,10 @@ class LibraryActivity : AppCompatActivity() {
                 is LibraryItem.FolderItem -> item.document.lastModified()
                 is LibraryItem.VideoItem -> item.document.lastModified()
                 is LibraryItem.CollectionItem -> Long.MAX_VALUE
+                // SMB has no cheap last-modified lookup without a per-item network round
+                // trip, and date-sort is a minor convenience -- name order is fine here.
+                is LibraryItem.SmbFolderItem -> 0L
+                is LibraryItem.SmbVideoItem -> 0L
                 is LibraryItem.ContinueWatchingRail -> Long.MAX_VALUE
                 is LibraryItem.SectionHeader -> Long.MAX_VALUE
             }
@@ -345,13 +411,77 @@ class LibraryActivity : AppCompatActivity() {
         },
     )
 
+    /** SMB directory listings are real network round trips, unlike SAF's local IPC --
+     *  this runs off the main thread, and drops a stale result if the user has already
+     *  navigated elsewhere by the time it comes back. */
+    private fun loadSmbFolderAsync(shareId: String, path: String) {
+        val share = networkShareRepository.get(shareId)
+        if (share == null) {
+            openSmbShareId = null
+            openSmbPath = ""
+            openSmbShareName = ""
+            refreshList()
+            return
+        }
+        smbExecutor.execute {
+            val result = runCatching { SmbBrowser.listChildren(share, path) }
+            mainHandler.post {
+                if (openSmbShareId != shareId || openSmbPath != path) return@post
+                val items = filterAndSort(result.getOrElse { emptyList() })
+                adapter.submitList(items, isRootLevel = false)
+                binding.emptyLibraryText.visibility = if (items.isEmpty()) View.VISIBLE else View.GONE
+                result.exceptionOrNull()?.let { error ->
+                    Toast.makeText(
+                        this,
+                        getString(R.string.connection_failed, error.message ?: error.toString()),
+                        Toast.LENGTH_LONG,
+                    ).show()
+                }
+            }
+        }
+    }
+
     private fun launchPlayer(video: LibraryItem.VideoItem) {
-        val settings = settingsRepository.effectiveSettings(video.document.uri.toString())
+        launchPlayerForUri(video.document.uri)
+    }
+
+    private fun launchPlayerForUri(uri: Uri) {
+        val settings = settingsRepository.effectiveSettings(uri.toString())
         val intent = Intent(this, PlayerActivity::class.java).apply {
-            data = video.document.uri
+            data = uri
             putExtra(PlayerActivity.EXTRA_SETTINGS, settings.serialize())
         }
         startActivity(intent)
+    }
+
+    private fun confirmRemoveShare(shareId: String, shareName: String) {
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.remove_share_title, shareName))
+            .setMessage(R.string.remove_share_message)
+            .setPositiveButton(R.string.remove) { _, _ ->
+                networkShareRepository.delete(shareId)
+                refreshList()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun showSmbVideoMenu(video: LibraryItem.SmbVideoItem, anchor: View) {
+        // Collections, custom titles/posters, and Continue Watching all resolve their
+        // videos back from a saved URI via SAF -- until that path also understands
+        // smb:// URIs, an SMB video only gets a per-video shader override here.
+        PopupMenu(this, anchor).apply {
+            menu.add(getString(R.string.effect_settings_for_video))
+            setOnMenuItemClickListener {
+                startActivity(
+                    Intent(this@LibraryActivity, EffectSettingsActivity::class.java).apply {
+                        putExtra(EffectSettingsActivity.EXTRA_MODE, EffectSettingsActivity.MODE_OVERRIDE)
+                        putExtra(EffectSettingsActivity.EXTRA_VIDEO_URI, video.uri.toString())
+                    },
+                )
+                true
+            }
+        }.show()
     }
 
     private fun confirmRemoveFolder(folder: LibraryItem.FolderItem) {
