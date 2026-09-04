@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@android:color/black">
@@ -24,20 +25,31 @@
         android:alpha="0"
         android:visibility="gone" />
 
+    <com.retrotube.app.tv.TvStaticView
+        android:id="@+id/tvStaticView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
+
     <TextView
         android:id="@+id/channelOsdBadge"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="top|end"
-        android:layout_margin="20dp"
-        android:paddingHorizontal="14dp"
-        android:paddingVertical="8dp"
-        android:background="@drawable/badge_background"
-        android:textColor="@color/retro_teal"
-        android:textSize="13sp"
+        android:layout_margin="24dp"
+        android:paddingHorizontal="4dp"
         android:fontFamily="monospace"
+        android:textStyle="bold"
+        android:textColor="#33FF6E"
+        android:textSize="42sp"
+        android:letterSpacing="0.05"
+        android:shadowColor="#8033FF6E"
+        android:shadowDx="0"
+        android:shadowDy="0"
+        android:shadowRadius="12"
         android:alpha="0"
-        android:visibility="gone" />
+        android:visibility="gone"
+        tools:text="CH 03" />
 
     <LinearLayout
         android:id="@+id/tvModeControls"
@@ -68,21 +80,19 @@
             android:textSize="20sp"
             android:textColor="@android:color/white"
             android:gravity="center"
-            android:background="@drawable/poster_icon_background" />
+            android:background="@drawable/poster_icon_background"
+            android:layout_marginBottom="40dp" />
+
+        <ImageView
+            android:id="@+id/exitTvModeButton"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:padding="14dp"
+            android:src="@drawable/ic_power"
+            android:contentDescription="@string/tv_mode_exit"
+            android:background="@drawable/poster_icon_background"
+            app:tint="@color/retro_magenta" />
 
     </LinearLayout>
-
-    <TextView
-        android:id="@+id/exitTvModeButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="top|start"
-        android:layout_margin="20dp"
-        android:text="✕"
-        android:textSize="18sp"
-        android:textColor="@android:color/white"
-        android:gravity="center"
-        android:background="@drawable/poster_icon_background"
-        android:visibility="gone" />
 
 </FrameLayout>

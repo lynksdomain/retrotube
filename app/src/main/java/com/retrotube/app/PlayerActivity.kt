@@ -44,6 +44,8 @@ class PlayerActivity : AppCompatActivity() {
         private const val AMBIENT_IDLE_DELAY_MS = 20_000L
         private const val TV_CONTROLS_HIDE_DELAY_MS = 4_000L
         private const val TV_TRANSITION_FADE_MS = 250L
+        private const val TV_STATIC_HOLD_MS = 500L
+        private const val TV_STATIC_FADE_OUT_MS = 150L
     }
 
     private lateinit var binding: ActivityPlayerBinding
@@ -78,18 +80,19 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     /** TV mode has no exo controller, so it manages its own tap-to-reveal overlay:
-     *  a tap shows the channel badge + up/down/exit buttons, and they fade back out
-     *  on their own after a few seconds -- there's nothing to pause, so nothing to
-     *  keep them open for. */
+     *  a tap shows the channel badge and the up/down/power column, and they fade
+     *  back out on their own after a few seconds -- there's nothing to pause, so
+     *  nothing to keep them open for. The power button lives inside tvModeControls,
+     *  so it shows and hides along with the rest of that column. */
     private val tvControlsHandler = Handler(Looper.getMainLooper())
     private val hideTvControls = Runnable {
         binding.tvModeControls.animate().alpha(0f).setDuration(300)
             .withEndAction { binding.tvModeControls.visibility = View.GONE }.start()
-        binding.exitTvModeButton.animate().alpha(0f).setDuration(300)
-            .withEndAction { binding.exitTvModeButton.visibility = View.GONE }.start()
-        binding.channelOsdBadge.animate().alpha(0f).setDuration(300)
-            .withEndAction { binding.channelOsdBadge.visibility = View.GONE }.start()
     }
+
+    /** Runs the static "no signal" hold between a channel-up/down tap and the next
+     *  channel actually starting -- see [changeChannel]. */
+    private val tvStaticHandler = Handler(Looper.getMainLooper())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -150,11 +153,11 @@ class PlayerActivity : AppCompatActivity() {
     private fun initializeTvPlayer() {
         val channel = tvChannels[tvChannelIndex]
         val videoIndex = tvChannelRepository.getCurrentIndex(channel)
-        playTvVideo(channel, videoIndex, showTransition = false)
+        playTvVideo(channel, videoIndex)
         showTvControls()
     }
 
-    private fun playTvVideo(channel: TvChannel, videoIndex: Int, showTransition: Boolean) {
+    private fun playTvVideo(channel: TvChannel, videoIndex: Int) {
         saveProgress()
         releasePlayer()
         val video = channel.videos[videoIndex]
@@ -162,35 +165,63 @@ class PlayerActivity : AppCompatActivity() {
         tvChannelRepository.setCurrentIndex(channel.id, videoIndex)
         tvChannelRepository.setLastChannelId(channel.id)
 
-        val exoPlayer = createPlayer(video.uri, VideoEffectSettings.DEFAULT, autoAdvanceOnEnd = true)
+        val exoPlayer = createPlayer(video.uri, VideoEffectSettings.TV_MODE, autoAdvanceOnEnd = true)
         player = exoPlayer
         progressHandler.postDelayed(progressSaver, PROGRESS_SAVE_INTERVAL_MS)
 
-        binding.channelOsdBadge.text = getString(R.string.tv_channel_badge, channel.number, channel.name, video.displayName)
-
-        if (showTransition) {
-            binding.ambientOverlay.visibility = View.VISIBLE
-            binding.ambientOverlay.bringToFront()
-            binding.ambientOverlay.alpha = 1f
-            binding.ambientOverlay.animate().alpha(0f).setDuration(TV_TRANSITION_FADE_MS)
-                .withEndAction { binding.ambientOverlay.visibility = View.GONE }.start()
-        }
     }
 
+    /** A manual channel flip gets a beat of tuner static before the next channel
+     *  comes in -- covers the real, variable time a new source takes to start
+     *  (worse over SMB) the same way a real tuner's snow does, rather than a
+     *  flash of black or a frozen frame. The channel-number readout only exists
+     *  on top of that static, the way a CRT's OSD only appears while tuning --
+     *  it's not part of the tap-to-reveal transport controls. */
     private fun changeChannel(direction: Int) {
         if (tvChannels.isEmpty()) return
         tvChannelIndex = (tvChannelIndex + direction).mod(tvChannels.size)
-        val channel = tvChannels[tvChannelIndex]
-        val videoIndex = tvChannelRepository.getCurrentIndex(channel)
-        playTvVideo(channel, videoIndex, showTransition = true)
         showTvControls()
+
+        binding.channelOsdBadge.text = getString(R.string.tv_channel_osd, tvChannels[tvChannelIndex].number)
+        binding.channelOsdBadge.animate().cancel()
+        binding.channelOsdBadge.visibility = View.VISIBLE
+        binding.channelOsdBadge.alpha = 1f
+
+        binding.tvStaticView.visibility = View.VISIBLE
+        binding.tvStaticView.alpha = 1f
+        binding.tvStaticView.animate().cancel()
+        binding.tvStaticView.bringToFront()
+        binding.channelOsdBadge.bringToFront()
+        binding.tvStaticView.start()
+
+        tvStaticHandler.removeCallbacksAndMessages(null)
+        tvStaticHandler.postDelayed({
+            val channel = tvChannels[tvChannelIndex]
+            val videoIndex = tvChannelRepository.getCurrentIndex(channel)
+            playTvVideo(channel, videoIndex)
+            binding.tvStaticView.animate().alpha(0f).setDuration(TV_STATIC_FADE_OUT_MS)
+                .withEndAction {
+                    binding.tvStaticView.stop()
+                    binding.tvStaticView.visibility = View.GONE
+                }.start()
+            binding.channelOsdBadge.animate().alpha(0f).setDuration(TV_STATIC_FADE_OUT_MS)
+                .withEndAction { binding.channelOsdBadge.visibility = View.GONE }.start()
+        }, TV_STATIC_HOLD_MS)
     }
 
+    /** Advancing to the next video within the same channel (episode ended) is not
+     *  a channel change -- a quick fade reads as "next thing," not "retuning." */
     private fun advanceWithinChannel() {
         val channel = tvChannels.getOrNull(tvChannelIndex) ?: return
         val currentIndex = tvChannelRepository.getCurrentIndex(channel)
         val nextIndex = (currentIndex + 1) % channel.videos.size
-        playTvVideo(channel, nextIndex, showTransition = true)
+
+        binding.ambientOverlay.visibility = View.VISIBLE
+        binding.ambientOverlay.bringToFront()
+        binding.ambientOverlay.alpha = 1f
+        playTvVideo(channel, nextIndex)
+        binding.ambientOverlay.animate().alpha(0f).setDuration(TV_TRANSITION_FADE_MS)
+            .withEndAction { binding.ambientOverlay.visibility = View.GONE }.start()
     }
 
     private fun toggleTvControls() {
@@ -204,12 +235,10 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun showTvControls() {
         tvControlsHandler.removeCallbacks(hideTvControls)
-        listOf(binding.tvModeControls, binding.exitTvModeButton, binding.channelOsdBadge).forEach { view ->
-            view.animate().cancel()
-            view.visibility = View.VISIBLE
-            view.bringToFront()
-            view.alpha = 1f
-        }
+        binding.tvModeControls.animate().cancel()
+        binding.tvModeControls.visibility = View.VISIBLE
+        binding.tvModeControls.bringToFront()
+        binding.tvModeControls.alpha = 1f
         tvControlsHandler.postDelayed(hideTvControls, TV_CONTROLS_HIDE_DELAY_MS)
     }
 
@@ -342,6 +371,9 @@ class PlayerActivity : AppCompatActivity() {
     private fun releasePlayer() {
         progressHandler.removeCallbacks(progressSaver)
         ambientHandler.removeCallbacks(showAmbient)
+        tvControlsHandler.removeCallbacksAndMessages(null)
+        tvStaticHandler.removeCallbacksAndMessages(null)
+        binding.tvStaticView.stop()
         player?.release()
         player = null
     }

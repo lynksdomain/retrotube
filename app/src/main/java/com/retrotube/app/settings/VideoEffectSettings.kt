@@ -23,6 +23,12 @@ data class VideoEffectSettings(
             aspectMode = AspectRatioFrameLayout.RESIZE_MODE_FIT,
         )
 
+        /** TV Mode forces a visible downscale -- at native resolution, scanline/mask
+         *  presets are too fine-grained to read as "CRT" at a glance, and a channel
+         *  you're flipping past for a couple seconds needs the effect to register
+         *  immediately, not reward close inspection. */
+        val TV_MODE = DEFAULT.copy(downscale = DownscaleTarget.P480)
+
         fun deserialize(raw: String?): VideoEffectSettings? {
             if (raw == null) return null
             val parts = raw.split("|")

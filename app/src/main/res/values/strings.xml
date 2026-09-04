@@ -58,8 +58,9 @@
     <string name="connection_failed">Couldn\'t connect: %1$s</string>
     <string name="playback_failed">Playback failed: %1$s</string>
     <string name="tv_mode_no_content">Add some videos or collections first to use TV Mode</string>
-    <string name="tv_channel_badge">CH %1$d — %2$s\n%3$s</string>
     <string name="tv_mode">TV Mode</string>
+    <string name="tv_mode_exit">Exit TV Mode</string>
+    <string name="tv_channel_osd">CH %02d</string>
     <string name="connection_succeeded">Connected -- found %1$d item(s)</string>
     <string name="remove_share_title">Remove \"%1$s\"?</string>
     <string name="remove_share_message">This only forgets the connection -- nothing on the share is touched.</string>
