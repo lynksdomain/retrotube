@@ -11,8 +11,8 @@ android {
         applicationId = "com.retrotube.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 2
-        versionName = "1.0.1"
+        versionCode = 3
+        versionName = "1.1.0"
     }
 
     // Populated from env vars in CI (see .github/workflows/release.yml) so release
