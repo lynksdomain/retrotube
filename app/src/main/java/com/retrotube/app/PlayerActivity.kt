@@ -195,7 +195,7 @@ class PlayerActivity : AppCompatActivity() {
             val channel = try {
                 future.get(TV_NETWORK_CHANNEL_TIMEOUT_MS, TimeUnit.MILLISECONDS)
             } catch (e: Exception) {
-                Log.w("PlayerActivity", "TV Mode channel '${definition.name}' unavailable", e)
+                Log.w("PlayerActivity", "TV Mode channel '${definition.id}' unavailable", e)
                 null
             }
             if (channel != null) {

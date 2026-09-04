@@ -25,7 +25,6 @@ object TvAutoSeeder {
         val folderChannels = libraryRepository.getRootDocuments().map { root ->
             TvChannelDefinition(
                 id = UUID.randomUUID().toString(),
-                name = root.name,
                 sources = listOf(TvChannelSource.LocalFolder(root.document.uri.toString(), root.name)),
             )
         }
@@ -33,7 +32,6 @@ object TvAutoSeeder {
         val collectionChannels = collectionRepository.getAll().map { collection ->
             TvChannelDefinition(
                 id = UUID.randomUUID().toString(),
-                name = collection.name,
                 sources = listOf(TvChannelSource.Collection(collection.id, collection.name)),
             )
         }
@@ -45,7 +43,6 @@ object TvAutoSeeder {
             listOf(
                 TvChannelDefinition(
                     id = UUID.randomUUID().toString(),
-                    name = "Network",
                     sources = shares.map { share -> TvChannelSource.SmbFolder(share.id, "", share.displayName) },
                 ),
             )

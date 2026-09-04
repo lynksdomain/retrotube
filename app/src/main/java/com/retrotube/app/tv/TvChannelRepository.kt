@@ -46,7 +46,7 @@ class TvChannelRepository(
     fun resolveChannel(definition: TvChannelDefinition): TvChannel? {
         val videos = definition.sources.flatMap { expandSource(it) }
         if (videos.isEmpty()) return null
-        return TvChannel(id = definition.id, number = 0, name = definition.name, videos = videos)
+        return TvChannel(id = definition.id, number = 0, videos = videos)
     }
 
     private fun expandSource(source: TvChannelSource): List<TvChannelVideo> = when (source) {

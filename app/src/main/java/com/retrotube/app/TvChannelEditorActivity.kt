@@ -2,10 +2,7 @@ package com.retrotube.app
 
 import android.content.Intent
 import android.os.Bundle
-import android.text.InputType
 import android.view.View
-import android.widget.EditText
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -15,10 +12,11 @@ import com.retrotube.app.tv.TvChannelConfigRepository
 import com.retrotube.app.tv.TvChannelListAdapter
 
 /**
- * The user's own TV Mode channel lineup -- add, remove, rename, and reorder
- * channels here (order is the channel numbering); tap one to edit what feeds
- * it (see [TvChannelDetailActivity]). Reachable both from the setup wizard's
- * first run and afterward, any time the lineup needs adjusting.
+ * The user's own TV Mode channel lineup -- add, remove, and reorder channels
+ * here (order is the channel numbering -- channels are always just "CH N,"
+ * never named); tap one to edit what feeds it (see [TvChannelDetailActivity]).
+ * Reachable both from the setup wizard's first run and afterward, any time
+ * the lineup needs adjusting.
  */
 class TvChannelEditorActivity : AppCompatActivity() {
 
@@ -49,7 +47,7 @@ class TvChannelEditorActivity : AppCompatActivity() {
         reorderTouchHelper.attachToRecyclerView(binding.channelList)
 
         binding.backButton.setOnClickListener { finish() }
-        binding.addChannelButton.setOnClickListener { promptNewChannel() }
+        binding.addChannelButton.setOnClickListener { addChannel() }
         binding.launchTvModeButton.setOnClickListener {
             startActivity(
                 Intent(this, PlayerActivity::class.java).putExtra(PlayerActivity.EXTRA_TV_MODE, true),
@@ -68,24 +66,15 @@ class TvChannelEditorActivity : AppCompatActivity() {
         adapter.submitList(channels)
     }
 
-    private fun promptNewChannel() {
-        val input = EditText(this).apply { inputType = InputType.TYPE_CLASS_TEXT }
-        AlertDialog.Builder(this)
-            .setTitle(R.string.tv_add_channel)
-            .setView(input)
-            .setPositiveButton(R.string.tv_add_channel_confirm) { _, _ ->
-                val name = input.text?.toString()?.trim().orEmpty()
-                if (name.isNotEmpty()) {
-                    val channel = configRepository.addChannel(name)
-                    refreshList()
-                    startActivity(
-                        Intent(this, TvChannelDetailActivity::class.java)
-                            .putExtra(TvChannelDetailActivity.EXTRA_CHANNEL_ID, channel.id),
-                    )
-                }
-            }
-            .setNegativeButton(R.string.cancel, null)
-            .show()
+    /** No name to ask for -- a new channel is just the next sequential number,
+     *  so this goes straight to its (empty) source list. */
+    private fun addChannel() {
+        val channel = configRepository.addChannel()
+        refreshList()
+        startActivity(
+            Intent(this, TvChannelDetailActivity::class.java)
+                .putExtra(TvChannelDetailActivity.EXTRA_CHANNEL_ID, channel.id),
+        )
     }
 
     /** Drag to reorder -- the list order is saved as the new channel order

@@ -37,7 +37,6 @@
                 android:textStyle="bold"
                 android:maxLines="1"
                 android:ellipsize="end"
-                android:background="?attr/selectableItemBackground"
                 android:padding="6dp" />
 
         </LinearLayout>

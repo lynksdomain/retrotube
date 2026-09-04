@@ -32,7 +32,7 @@ class TvChannelListAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val channel = channels[position]
-        holder.binding.rowName.text = channel.name
+        holder.binding.rowName.text = holder.itemView.resources.getString(com.retrotube.app.R.string.tv_channel_number, position + 1)
         holder.binding.rowSourceCount.text = holder.itemView.resources.getString(
             com.retrotube.app.R.string.tv_channel_source_count,
             channel.sources.size,

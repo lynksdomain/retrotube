@@ -1,18 +1,15 @@
 package com.retrotube.app
 
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
-import android.text.InputType
 import android.view.View
-import android.widget.EditText
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.documentfile.provider.DocumentFile
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.retrotube.app.collections.CollectionRepository
 import com.retrotube.app.databinding.ActivityTvChannelDetailBinding
+import com.retrotube.app.library.LibraryRepository
 import com.retrotube.app.network.NetworkShareRepository
 import com.retrotube.app.tv.TvChannelConfigRepository
 import com.retrotube.app.tv.TvChannelSource
@@ -34,17 +31,6 @@ class TvChannelDetailActivity : AppCompatActivity() {
     private lateinit var configRepository: TvChannelConfigRepository
     private lateinit var adapter: TvChannelSourceAdapter
     private lateinit var channelId: String
-
-    private val pickLocalFolder = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
-        if (uri == null) return@registerForActivityResult
-        contentResolver.takePersistableUriPermission(
-            uri,
-            Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION,
-        )
-        val name = DocumentFile.fromTreeUri(this, uri)?.name ?: getString(R.string.tv_source_folder_default_name)
-        configRepository.addSource(channelId, TvChannelSource.LocalFolder(uri.toString(), name))
-        refresh()
-    }
 
     private val pickVideos = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         refresh()
@@ -71,41 +57,22 @@ class TvChannelDetailActivity : AppCompatActivity() {
         binding.sourceList.adapter = adapter
 
         binding.backButton.setOnClickListener { finish() }
-        binding.channelNameText.setOnClickListener { promptRename() }
         binding.addSourceButton.setOnClickListener { promptAddSource() }
 
         refresh()
     }
 
     private fun refresh() {
-        val channel = configRepository.getChannels().firstOrNull { it.id == channelId }
-        if (channel == null) {
+        val channels = configRepository.getChannels()
+        val index = channels.indexOfFirst { it.id == channelId }
+        if (index < 0) {
             finish()
             return
         }
-        binding.channelNameText.text = channel.name
+        val channel = channels[index]
+        binding.channelNameText.text = getString(R.string.tv_channel_number, index + 1)
         binding.emptyStateText.visibility = if (channel.sources.isEmpty()) View.VISIBLE else View.GONE
         adapter.submitList(channel.sources)
-    }
-
-    private fun promptRename() {
-        val currentName = configRepository.getChannels().firstOrNull { it.id == channelId }?.name.orEmpty()
-        val input = EditText(this).apply {
-            inputType = InputType.TYPE_CLASS_TEXT
-            setText(currentName)
-        }
-        AlertDialog.Builder(this)
-            .setTitle(R.string.tv_rename_channel)
-            .setView(input)
-            .setPositiveButton(R.string.tv_add_channel_confirm) { _, _ ->
-                val name = input.text?.toString()?.trim().orEmpty()
-                if (name.isNotEmpty()) {
-                    configRepository.renameChannel(channelId, name)
-                    refresh()
-                }
-            }
-            .setNegativeButton(R.string.cancel, null)
-            .show()
     }
 
     private fun promptAddSource() {
@@ -119,7 +86,7 @@ class TvChannelDetailActivity : AppCompatActivity() {
             .setTitle(R.string.tv_add_source)
             .setItems(options) { _, index ->
                 when (index) {
-                    0 -> pickLocalFolder.launch(null)
+                    0 -> promptAddLocalFolder()
                     1 -> promptAddSmbShare()
                     2 -> promptAddCollection()
                     3 -> pickVideos.launch(
@@ -127,6 +94,26 @@ class TvChannelDetailActivity : AppCompatActivity() {
                             .putExtra(TvChannelPickVideosActivity.EXTRA_CHANNEL_ID, channelId),
                     )
                 }
+            }
+            .show()
+    }
+
+    /** Picks from folders already added to the library -- not a raw system
+     *  folder browser, which could point a channel at something outside the
+     *  library entirely rather than content already in it. */
+    private fun promptAddLocalFolder() {
+        val roots = LibraryRepository(this).getRootDocuments()
+        if (roots.isEmpty()) {
+            AlertDialog.Builder(this).setMessage(R.string.tv_no_local_folders).setPositiveButton(R.string.ok, null).show()
+            return
+        }
+        val names = roots.map { it.name }.toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle(R.string.tv_add_source_local_folder)
+            .setItems(names) { _, index ->
+                val root = roots[index]
+                configRepository.addSource(channelId, TvChannelSource.LocalFolder(root.document.uri.toString(), root.name))
+                refresh()
             }
             .show()
     }

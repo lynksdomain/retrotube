@@ -5,12 +5,13 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
 
-/** A user-programmed channel definition -- just a name and an ordered list of
- *  sources, resolved into an actual [TvChannel] (with real videos) by
- *  [TvChannelRepository] at playback time. */
+/** A user-programmed channel definition -- just an ordered list of sources,
+ *  resolved into an actual [TvChannel] (with real videos) by
+ *  [TvChannelRepository] at playback time. Channels are identified purely by
+ *  their position in [TvChannelConfigRepository.getChannels] (CH 1, CH 2,
+ *  ...), never a name -- there's no field here to rename. */
 data class TvChannelDefinition(
     val id: String,
-    val name: String,
     val sources: List<TvChannelSource>,
 )
 
@@ -45,14 +46,12 @@ class TvChannelConfigRepository(context: Context) {
         prefs.edit().putString(KEY_CHANNELS, array.toString()).apply()
     }
 
-    fun addChannel(name: String): TvChannelDefinition {
-        val channel = TvChannelDefinition(id = UUID.randomUUID().toString(), name = name, sources = emptyList())
+    /** Always appends -- the new channel becomes whatever the next sequential
+     *  number is (channel count + 1), never named or numbered by the caller. */
+    fun addChannel(): TvChannelDefinition {
+        val channel = TvChannelDefinition(id = UUID.randomUUID().toString(), sources = emptyList())
         saveChannels(getChannels() + channel)
         return channel
-    }
-
-    fun renameChannel(channelId: String, name: String) {
-        saveChannels(getChannels().map { if (it.id == channelId) it.copy(name = name) else it })
     }
 
     fun deleteChannel(channelId: String) {
@@ -105,7 +104,6 @@ class TvChannelConfigRepository(context: Context) {
 
     private fun TvChannelDefinition.toJson(): JSONObject = JSONObject().apply {
         put("id", id)
-        put("name", name)
         val sourcesArray = JSONArray()
         sources.forEach { sourcesArray.put(it.toJson()) }
         put("sources", sourcesArray)
@@ -114,12 +112,11 @@ class TvChannelConfigRepository(context: Context) {
     private fun parseChannel(json: JSONObject?): TvChannelDefinition? {
         if (json == null) return null
         val id = json.optString("id").ifEmpty { return null }
-        val name = json.optString("name").ifEmpty { return null }
         val sourcesArray = json.optJSONArray("sources") ?: JSONArray()
         val sources = (0 until sourcesArray.length()).mapNotNull { i ->
             TvChannelSource.fromJson(sourcesArray.optJSONObject(i) ?: return@mapNotNull null)
         }
-        return TvChannelDefinition(id, name, sources)
+        return TvChannelDefinition(id, sources)
     }
 
     companion object {
