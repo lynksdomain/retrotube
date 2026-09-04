@@ -7,9 +7,11 @@ import android.graphics.Paint
 import android.graphics.RadialGradient
 import android.graphics.Rect
 import android.graphics.Shader
+import android.graphics.Typeface
 import android.os.Handler
 import android.os.Looper
 import android.util.AttributeSet
+import android.util.TypedValue
 import android.view.View
 import kotlin.math.hypot
 import kotlin.random.Random
@@ -27,7 +29,10 @@ import kotlin.random.Random
  * the zfast-crt look every TV Mode channel plays with (see
  * [com.retrotube.app.settings.VideoEffectSettings.TV_MODE]), so the static
  * doesn't read as a different, uncorrected layer from the video it's
- * covering for.
+ * covering for. The channel-number OSD is drawn here too, underneath that
+ * same scanline pass, rather than as a separate view floating on top --
+ * sharp vector text over degraded static would look like a UI overlay
+ * instead of a real tuner's on-screen display.
  */
 class TvStaticView @JvmOverloads constructor(
     context: Context,
@@ -39,12 +44,29 @@ class TvStaticView @JvmOverloads constructor(
         private const val NOISE_HEIGHT = 90
         private const val FRAME_INTERVAL_MS = 60L
         private const val SCANLINE_SPACING_PX = 3f
+        private const val OSD_TEXT_SIZE_SP = 42f
+        private const val OSD_MARGIN_DP = 24f
     }
+
+    /** Set to show the channel-number OSD (drawn under the scanlines/vignette so it
+     *  degrades the same way the rest of the frame does); null hides it. */
+    var osdText: String? = null
+        set(value) {
+            field = value
+            invalidate()
+        }
 
     private val noiseBitmap = Bitmap.createBitmap(NOISE_WIDTH, NOISE_HEIGHT, Bitmap.Config.ARGB_8888)
     private val pixels = IntArray(NOISE_WIDTH * NOISE_HEIGHT)
     private val paint = Paint().apply { isFilterBitmap = false }
     private val scanlinePaint = Paint().apply { color = 0x30000000 }
+    private val osdPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = 0xFF33FF6E.toInt()
+        typeface = Typeface.MONOSPACE
+        isFakeBoldText = true
+        textSize = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, OSD_TEXT_SIZE_SP, context.resources.displayMetrics)
+        setShadowLayer(18f, 0f, 0f, 0x8033FF6E.toInt())
+    }
     private var vignettePaint: Paint? = null
     private val destRect = Rect()
     private val handler = Handler(Looper.getMainLooper())
@@ -94,6 +116,13 @@ class TvStaticView @JvmOverloads constructor(
         super.onDraw(canvas)
         destRect.set(0, 0, width, height)
         canvas.drawBitmap(noiseBitmap, null, destRect, paint)
+
+        osdText?.let { text ->
+            val margin = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, OSD_MARGIN_DP, resources.displayMetrics)
+            val textWidth = osdPaint.measureText(text)
+            val y = margin - osdPaint.ascent()
+            canvas.drawText(text, width - margin - textWidth, y, osdPaint)
+        }
 
         var y = 0f
         while (y < height) {

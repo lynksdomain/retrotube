@@ -182,16 +182,11 @@ class PlayerActivity : AppCompatActivity() {
         tvChannelIndex = (tvChannelIndex + direction).mod(tvChannels.size)
         showTvControls()
 
-        binding.channelOsdBadge.text = getString(R.string.tv_channel_osd, tvChannels[tvChannelIndex].number)
-        binding.channelOsdBadge.animate().cancel()
-        binding.channelOsdBadge.visibility = View.VISIBLE
-        binding.channelOsdBadge.alpha = 1f
-
+        binding.tvStaticView.osdText = getString(R.string.tv_channel_osd, tvChannels[tvChannelIndex].number)
         binding.tvStaticView.visibility = View.VISIBLE
         binding.tvStaticView.alpha = 1f
         binding.tvStaticView.animate().cancel()
         binding.tvStaticView.bringToFront()
-        binding.channelOsdBadge.bringToFront()
         binding.tvStaticView.start()
 
         tvStaticHandler.removeCallbacksAndMessages(null)
@@ -203,9 +198,8 @@ class PlayerActivity : AppCompatActivity() {
                 .withEndAction {
                     binding.tvStaticView.stop()
                     binding.tvStaticView.visibility = View.GONE
+                    binding.tvStaticView.osdText = null
                 }.start()
-            binding.channelOsdBadge.animate().alpha(0f).setDuration(TV_STATIC_FADE_OUT_MS)
-                .withEndAction { binding.channelOsdBadge.visibility = View.GONE }.start()
         }, TV_STATIC_HOLD_MS)
     }
 
