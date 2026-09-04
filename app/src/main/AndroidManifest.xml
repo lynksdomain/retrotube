@@ -58,6 +58,14 @@
             android:exported="false" />
 
         <activity
+            android:name=".TvChannelPickLocalFolderActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".TvChannelPickSmbFolderActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".PlayerActivity"
             android:exported="false"
             android:configChanges="orientation|screenSize|keyboardHidden"

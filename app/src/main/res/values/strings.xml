@@ -81,9 +81,13 @@
     <string name="tv_add_source_smb_folder">Network Share</string>
     <string name="tv_add_source_collection">Collection</string>
     <string name="tv_add_source_videos">Individual Videos</string>
-    <string name="tv_no_shares_connected">No network shares connected yet</string>
     <string name="tv_no_collections">No collections yet</string>
-    <string name="tv_no_local_folders">No local folders in your library yet</string>
+    <string name="tv_pick_folder_title">Choose a Folder</string>
+    <string name="tv_pick_share_title">Choose a Share</string>
+    <string name="tv_add_this_folder">Add \"%1$s\"</string>
+    <string name="tv_add_button">+</string>
+    <string name="tv_source_added">Added \"%1$s\"</string>
+    <string name="tv_browse_folder_empty">Nothing here</string>
     <string name="connection_succeeded">Connected -- found %1$d item(s)</string>
     <string name="remove_share_title">Remove \"%1$s\"?</string>
     <string name="remove_share_message">This only forgets the connection -- nothing on the share is touched.</string>

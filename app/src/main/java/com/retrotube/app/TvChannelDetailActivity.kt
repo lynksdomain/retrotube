@@ -9,8 +9,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.retrotube.app.collections.CollectionRepository
 import com.retrotube.app.databinding.ActivityTvChannelDetailBinding
-import com.retrotube.app.library.LibraryRepository
-import com.retrotube.app.network.NetworkShareRepository
 import com.retrotube.app.tv.TvChannelConfigRepository
 import com.retrotube.app.tv.TvChannelSource
 import com.retrotube.app.tv.TvChannelSourceAdapter
@@ -32,7 +30,7 @@ class TvChannelDetailActivity : AppCompatActivity() {
     private lateinit var adapter: TvChannelSourceAdapter
     private lateinit var channelId: String
 
-    private val pickVideos = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+    private val pickResult = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         refresh()
     }
 
@@ -86,51 +84,20 @@ class TvChannelDetailActivity : AppCompatActivity() {
             .setTitle(R.string.tv_add_source)
             .setItems(options) { _, index ->
                 when (index) {
-                    0 -> promptAddLocalFolder()
-                    1 -> promptAddSmbShare()
+                    0 -> pickResult.launch(
+                        Intent(this, TvChannelPickLocalFolderActivity::class.java)
+                            .putExtra(TvChannelPickLocalFolderActivity.EXTRA_CHANNEL_ID, channelId),
+                    )
+                    1 -> pickResult.launch(
+                        Intent(this, TvChannelPickSmbFolderActivity::class.java)
+                            .putExtra(TvChannelPickSmbFolderActivity.EXTRA_CHANNEL_ID, channelId),
+                    )
                     2 -> promptAddCollection()
-                    3 -> pickVideos.launch(
+                    3 -> pickResult.launch(
                         Intent(this, TvChannelPickVideosActivity::class.java)
                             .putExtra(TvChannelPickVideosActivity.EXTRA_CHANNEL_ID, channelId),
                     )
                 }
-            }
-            .show()
-    }
-
-    /** Picks from folders already added to the library -- not a raw system
-     *  folder browser, which could point a channel at something outside the
-     *  library entirely rather than content already in it. */
-    private fun promptAddLocalFolder() {
-        val roots = LibraryRepository(this).getRootDocuments()
-        if (roots.isEmpty()) {
-            AlertDialog.Builder(this).setMessage(R.string.tv_no_local_folders).setPositiveButton(R.string.ok, null).show()
-            return
-        }
-        val names = roots.map { it.name }.toTypedArray()
-        AlertDialog.Builder(this)
-            .setTitle(R.string.tv_add_source_local_folder)
-            .setItems(names) { _, index ->
-                val root = roots[index]
-                configRepository.addSource(channelId, TvChannelSource.LocalFolder(root.document.uri.toString(), root.name))
-                refresh()
-            }
-            .show()
-    }
-
-    private fun promptAddSmbShare() {
-        val shares = NetworkShareRepository(this).getAll()
-        if (shares.isEmpty()) {
-            AlertDialog.Builder(this).setMessage(R.string.tv_no_shares_connected).setPositiveButton(R.string.ok, null).show()
-            return
-        }
-        val names = shares.map { it.displayName }.toTypedArray()
-        AlertDialog.Builder(this)
-            .setTitle(R.string.tv_add_source_smb_folder)
-            .setItems(names) { _, index ->
-                val share = shares[index]
-                configRepository.addSource(channelId, TvChannelSource.SmbFolder(share.id, "", share.displayName))
-                refresh()
             }
             .show()
     }
