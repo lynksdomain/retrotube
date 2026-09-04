@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.util.LruCache
 import java.io.File
 import java.io.FileOutputStream
 import java.util.UUID
@@ -68,11 +69,18 @@ class CollectionRepository(private val context: Context) {
             .remove(videosKey(collectionId))
             .remove(posterKey(collectionId))
             .apply()
+        posterCache.remove(collectionId)
     }
 
+    /** A RecyclerView rebinds this on every scroll past the same card -- cached in memory
+     *  (shared across every repository instance, not per-instance) so that doesn't mean
+     *  re-decoding the same PNG from disk each time. */
     fun getPoster(collectionId: String): Bitmap? {
+        posterCache.get(collectionId)?.let { return it }
         val path = prefs.getString(posterKey(collectionId), null) ?: return null
-        return runCatching { BitmapFactory.decodeFile(path) }.getOrNull()
+        val bitmap = runCatching { BitmapFactory.decodeFile(path) }.getOrNull() ?: return null
+        posterCache.put(collectionId, bitmap)
+        return bitmap
     }
 
     /** Decodes and downsamples whatever image the user picked -- a full-resolution
@@ -83,6 +91,7 @@ class CollectionRepository(private val context: Context) {
         val file = File(posterDir, "$collectionId.png")
         FileOutputStream(file).use { out -> bitmap.compress(Bitmap.CompressFormat.PNG, 100, out) }
         prefs.edit().putString(posterKey(collectionId), file.absolutePath).apply()
+        posterCache.put(collectionId, bitmap)
         return true
     }
 
@@ -111,4 +120,8 @@ class CollectionRepository(private val context: Context) {
     private fun nameKey(id: String) = "collection_${id}_name"
     private fun videosKey(id: String) = "collection_${id}_videos"
     private fun posterKey(id: String) = "collection_${id}_poster"
+
+    companion object {
+        private val posterCache = LruCache<String, Bitmap>(32)
+    }
 }
