@@ -32,14 +32,29 @@ class NetworkShareRepository(context: Context) {
         val masterKey = MasterKey.Builder(context)
             .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
             .build()
-        EncryptedSharedPreferences.create(
-            context,
-            "retrotube_network_shares",
-            masterKey,
-            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
-        )
+        runCatching { openEncryptedPrefs(context, masterKey) }.getOrElse {
+            // The Keystore-backed master key can't decrypt this file -- almost
+            // always because auto-backup restored an old encrypted prefs file
+            // onto a fresh install/device, whose new hardware key has no
+            // relation to whatever key originally encrypted that data (the key
+            // itself is never part of a backup). There's no way to recover the
+            // old ciphertext without the original key, so the only way out of
+            // a permanent crash-on-open is to drop the stale file and start
+            // clean -- this loses previously-saved shares, but only ever once,
+            // right after a restore that was already unusable.
+            context.getSharedPreferences(PREFS_FILE_NAME, Context.MODE_PRIVATE).edit().clear().apply()
+            context.deleteSharedPreferences(PREFS_FILE_NAME)
+            openEncryptedPrefs(context, masterKey)
+        }
     }
+
+    private fun openEncryptedPrefs(context: Context, masterKey: MasterKey) = EncryptedSharedPreferences.create(
+        context,
+        PREFS_FILE_NAME,
+        masterKey,
+        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
+    )
 
     fun getAll(): List<NetworkShare> = idsInOrder().mapNotNull { get(it) }
 
@@ -71,6 +86,19 @@ class NetworkShareRepository(context: Context) {
         return id
     }
 
+    /** Updates an already-saved share's fields in place -- unlike [add], this
+     *  never touches the id ordering list, since the id already belongs to it. */
+    fun update(share: NetworkShare) {
+        prefs.edit()
+            .putString(key(share.id, "name"), share.displayName)
+            .putString(key(share.id, "host"), share.host)
+            .putString(key(share.id, "share"), share.shareName)
+            .putString(key(share.id, "user"), share.username)
+            .putString(key(share.id, "pass"), share.password)
+            .putString(key(share.id, "domain"), share.domain)
+            .apply()
+    }
+
     fun delete(id: String) {
         val ids = idsInOrder().filterNot { it == id }
         prefs.edit()
@@ -89,4 +117,8 @@ class NetworkShareRepository(context: Context) {
 
     private fun idsKey() = "share_ids"
     private fun key(id: String, field: String) = "share_${id}_$field"
+
+    private companion object {
+        const val PREFS_FILE_NAME = "retrotube_network_shares"
+    }
 }

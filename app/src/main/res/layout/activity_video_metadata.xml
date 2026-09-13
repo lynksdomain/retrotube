@@ -22,15 +22,15 @@
                 android:gravity="center_vertical"
                 android:layout_marginBottom="20dp">
 
-                <TextView
+                <ImageView
                     android:id="@+id/backButton"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="←"
-                    android:textSize="22sp"
-                    android:textColor="@color/retro_teal"
                     android:padding="6dp"
-                    android:background="?attr/selectableItemBackgroundBorderless" />
+                    android:background="?attr/selectableItemBackgroundBorderless"
+        android:src="@drawable/ic_arrow_back"
+        android:scaleType="centerInside"
+        app:tint="@color/retro_teal" />
 
                 <TextView
                     android:layout_width="wrap_content"

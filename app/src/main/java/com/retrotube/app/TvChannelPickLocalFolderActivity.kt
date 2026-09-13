@@ -13,6 +13,7 @@ import com.retrotube.app.tv.TvBrowseRow
 import com.retrotube.app.tv.TvBrowseRowAdapter
 import com.retrotube.app.tv.TvChannelConfigRepository
 import com.retrotube.app.tv.TvChannelSource
+import com.retrotube.app.util.applyTopBarInset
 
 /**
  * Browses the library's own folder tree (never a raw system file picker) so a
@@ -49,6 +50,7 @@ class TvChannelPickLocalFolderActivity : AppCompatActivity() {
 
         binding = ActivityTvBrowseFolderBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        binding.root.applyTopBarInset()
         configRepository = TvChannelConfigRepository(this)
         metadataRepository = VideoMetadataRepository(this)
 

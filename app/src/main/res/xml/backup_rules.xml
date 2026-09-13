@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Pre-Android-12 (API < 31) full-backup rules. -->
+<full-backup-content>
+    <exclude domain="sharedpref" path="retrotube_network_shares.xml" />
+</full-backup-content>

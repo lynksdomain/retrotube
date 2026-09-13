@@ -8,12 +8,13 @@ import android.text.TextWatcher
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.retrotube.app.collections.CollectionVideoRowAdapter
+import com.retrotube.app.library.VideoCheckboxRowAdapter
 import com.retrotube.app.databinding.ActivityTvPickVideosBinding
 import com.retrotube.app.library.LibraryRepository
 import com.retrotube.app.metadata.VideoMetadataRepository
 import com.retrotube.app.tv.TvChannelConfigRepository
 import java.util.concurrent.Executors
+import com.retrotube.app.util.applyTopBarInset
 
 /** The whole local library as one flat, checkable list -- adding individual
  *  videos to a TV Mode channel, same interaction as building a collection. */
@@ -27,10 +28,10 @@ class TvChannelPickVideosActivity : AppCompatActivity() {
     private lateinit var libraryRepository: LibraryRepository
     private lateinit var configRepository: TvChannelConfigRepository
     private lateinit var metadataRepository: VideoMetadataRepository
-    private lateinit var adapter: CollectionVideoRowAdapter
+    private lateinit var adapter: VideoCheckboxRowAdapter
     private lateinit var channelId: String
 
-    private var allRows: List<CollectionVideoRowAdapter.Row> = emptyList()
+    private var allRows: List<VideoCheckboxRowAdapter.Row> = emptyList()
     private val ioExecutor = Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
 
@@ -45,6 +46,7 @@ class TvChannelPickVideosActivity : AppCompatActivity() {
 
         binding = ActivityTvPickVideosBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        binding.root.applyTopBarInset()
 
         libraryRepository = LibraryRepository(this)
         configRepository = TvChannelConfigRepository(this)
@@ -52,7 +54,7 @@ class TvChannelPickVideosActivity : AppCompatActivity() {
 
         binding.backButton.setOnClickListener { finish() }
 
-        adapter = CollectionVideoRowAdapter { entry, checked ->
+        adapter = VideoCheckboxRowAdapter { entry, checked ->
             val uriString = entry.document.uri.toString()
             if (checked) {
                 val title = metadataRepository.getCustomTitle(uriString) ?: cleanupName(entry.name)
@@ -83,7 +85,7 @@ class TvChannelPickVideosActivity : AppCompatActivity() {
             val rows = libraryRepository.getAllVideos().map { entry ->
                 val uriString = entry.document.uri.toString()
                 val title = metadataRepository.getCustomTitle(uriString) ?: cleanupName(entry.name)
-                CollectionVideoRowAdapter.Row(entry, title, uriString in currentUris)
+                VideoCheckboxRowAdapter.Row(entry, title, uriString in currentUris)
             }.sortedBy { it.title.lowercase() }
 
             mainHandler.post {

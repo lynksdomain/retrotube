@@ -47,6 +47,18 @@
         android:layout_gravity="center_vertical|end"
         android:layoutDirection="ltr">
 
+      <TextView android:id="@+id/subtitlesButton"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:layout_gravity="center_vertical"
+          android:layout_marginEnd="8dp"
+          android:text="@string/subtitles_button"
+          android:textColor="#FFFFFF"
+          android:textSize="12sp"
+          android:paddingHorizontal="12dp"
+          android:paddingVertical="6dp"
+          android:background="#40FFFFFF"/>
+
       <TextView android:id="@+id/compareButton"
           android:layout_width="wrap_content"
           android:layout_height="wrap_content"

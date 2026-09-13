@@ -3,7 +3,6 @@ package com.retrotube.app.tv
 import android.content.Context
 import android.net.Uri
 import androidx.documentfile.provider.DocumentFile
-import com.retrotube.app.collections.CollectionRepository
 import com.retrotube.app.library.LibraryItem
 import com.retrotube.app.metadata.VideoMetadataRepository
 import com.retrotube.app.network.NetworkShareRepository
@@ -29,29 +28,48 @@ import jcifs.CIFSContext
  */
 class TvChannelRepository(
     private val context: Context,
-    private val collectionRepository: CollectionRepository,
     private val progressRepository: PlaybackProgressRepository,
     private val metadataRepository: VideoMetadataRepository,
 ) {
     private val prefs = context.getSharedPreferences("retrotube_tv_mode", Context.MODE_PRIVATE)
 
+    /** In-memory only, cleared on process death -- a resolved channel (crawling
+     *  a whole folder tree, possibly over SMB) is expensive enough that
+     *  re-resolving it every time TV Mode flips back to a channel would make
+     *  channel-surfing itself feel laggy. Keyed by channel id and invalidated
+     *  the moment that channel's own definition changes (see [invalidate]),
+     *  never by a fixed TTL -- nothing else about a resolved channel goes
+     *  stale on its own within one session. */
+    private val resolvedCache = mutableMapOf<String, TvChannel>()
+
     fun hasNetworkSource(definition: TvChannelDefinition): Boolean =
         definition.sources.any { it is TvChannelSource.SmbFolder }
 
     /** Expands every source in [definition] into one flat video list, in source
-     *  order. Local-only definitions are safe on the main thread; a definition
-     *  with any [TvChannelSource.SmbFolder] source does real network I/O and
-     *  must be called off it (see [hasNetworkSource]). Returns null if nothing
-     *  resolved to any videos. */
+     *  order, reusing this session's cached result if [definition] hasn't
+     *  changed since the last resolve. Local-only definitions are safe on the
+     *  main thread; a definition with any [TvChannelSource.SmbFolder] source
+     *  does real network I/O and must be called off it (see
+     *  [hasNetworkSource]) -- but only on a cache miss. Returns null if
+     *  nothing resolved to any videos. */
     fun resolveChannel(definition: TvChannelDefinition): TvChannel? {
+        resolvedCache[definition.id]?.let { return it }
         val videos = definition.sources.flatMap { expandSource(it) }
         if (videos.isEmpty()) return null
-        return TvChannel(id = definition.id, number = 0, videos = videos)
+        val channel = TvChannel(id = definition.id, number = 0, videos = videos)
+        resolvedCache[definition.id] = channel
+        return channel
+    }
+
+    /** Call whenever a channel's own sources are edited (add/remove/reorder
+     *  source, or the channel is deleted) so the next resolve re-crawls
+     *  instead of serving a stale list. */
+    fun invalidate(channelId: String) {
+        resolvedCache.remove(channelId)
     }
 
     private fun expandSource(source: TvChannelSource): List<TvChannelVideo> = when (source) {
         is TvChannelSource.LocalFolder -> expandLocalFolder(source)
-        is TvChannelSource.Collection -> expandCollection(source)
         is TvChannelSource.Video -> listOf(toChannelVideo(Uri.parse(source.uri), source.displayName))
         is TvChannelSource.SmbFolder -> expandSmbFolder(source)
     }
@@ -74,10 +92,6 @@ class TvChannelRepository(
             }
         }
     }
-
-    private fun expandCollection(source: TvChannelSource.Collection): List<TvChannelVideo> =
-        collectionRepository.get(source.collectionId)?.videoUris.orEmpty()
-            .map { toChannelVideo(Uri.parse(it), it.substringAfterLast('/')) }
 
     private fun expandSmbFolder(source: TvChannelSource.SmbFolder): List<TvChannelVideo> {
         val share = NetworkShareRepository(context).get(source.shareId) ?: return emptyList()

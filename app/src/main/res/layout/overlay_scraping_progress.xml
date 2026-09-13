@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/scrapingProgressRoot"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_gravity="bottom|center_horizontal"
+    android:layout_marginBottom="24dp"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:background="@drawable/scraping_progress_background"
+    android:paddingHorizontal="18dp"
+    android:paddingVertical="12dp"
+    android:elevation="8dp"
+    android:visibility="gone">
+
+    <ProgressBar
+        android:layout_width="18dp"
+        android:layout_height="18dp"
+        android:layout_marginEnd="12dp"
+        android:indeterminateTint="@color/retro_teal" />
+
+    <TextView
+        android:id="@+id/scrapingProgressText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="@color/retro_text_primary"
+        android:textSize="14sp" />
+
+</LinearLayout>

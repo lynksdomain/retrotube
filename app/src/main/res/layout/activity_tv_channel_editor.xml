@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/retro_background">
@@ -14,49 +15,41 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:padding="16dp">
-
-            <TextView
-                android:id="@+id/backButton"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="←"
-                android:textSize="22sp"
-                android:textColor="@color/retro_teal"
-                android:padding="6dp"
-                android:background="?attr/selectableItemBackgroundBorderless" />
+            android:paddingStart="16dp"
+            android:paddingEnd="4dp"
+            android:paddingVertical="8dp">
 
             <TextView
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:layout_marginStart="10dp"
-                android:text="@string/tv_channel_editor_title"
+                android:text="@string/nav_tab_tv"
                 android:textColor="@color/retro_text_primary"
                 android:textSize="18sp"
                 android:textStyle="bold" />
 
             <TextView
-                android:id="@+id/launchTvModeButton"
+                android:id="@+id/editButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/tv_channel_editor_launch"
+                android:background="?attr/selectableItemBackground"
+                android:padding="10dp"
+                android:text="@string/edit"
                 android:textColor="@color/retro_teal"
-                android:textSize="14sp"
-                android:padding="8dp"
-                android:background="?attr/selectableItemBackgroundBorderless" />
+                android:textSize="15sp" />
+
+            <ImageView
+                android:id="@+id/addChannelButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:padding="10dp"
+                android:contentDescription="@string/tv_add_channel"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_add"
+                android:scaleType="centerInside"
+                app:tint="@color/retro_text_primary" />
 
         </LinearLayout>
-
-        <TextView
-            android:id="@+id/emptyStateText"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-            android:padding="32dp"
-            android:textColor="@color/retro_text_muted"
-            android:text="@string/tv_channel_editor_empty"
-            android:visibility="gone" />
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/channelList"
@@ -64,21 +57,24 @@
             android:layout_height="0dp"
             android:layout_weight="1"
             android:clipToPadding="false"
-            android:paddingBottom="16dp" />
-
-        <TextView
-            android:id="@+id/addChannelButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_margin="16dp"
-            android:background="@color/retro_teal"
-            android:textColor="@color/retro_teal_on"
-            android:textStyle="bold"
-            android:textSize="15sp"
-            android:gravity="center"
-            android:padding="14dp"
-            android:text="@string/tv_add_channel" />
+            android:paddingBottom="88dp" />
 
     </LinearLayout>
+
+    <ImageView
+        android:id="@+id/launchTvModeButton"
+        android:layout_width="64dp"
+        android:layout_height="64dp"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="24dp"
+        android:layout_marginBottom="88dp"
+        android:background="@drawable/fab_play_background"
+        android:elevation="6dp"
+        android:contentDescription="@string/tv_channel_editor_launch"
+        android:src="@drawable/ic_play_arrow"
+        android:scaleType="centerInside"
+        app:tint="@color/retro_teal_on" />
+
+    <include layout="@layout/bottom_nav_bar" />
 
 </FrameLayout>

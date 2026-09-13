@@ -2,7 +2,8 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@color/retro_background">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -18,141 +19,74 @@
             android:paddingEnd="4dp"
             android:paddingVertical="8dp">
 
-            <LinearLayout
-                android:id="@+id/breadcrumbRow"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:visibility="gone">
-
-                <TextView
-                    android:id="@+id/backButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="←"
-                    android:textSize="20sp"
-                    android:textColor="@color/retro_teal"
-                    android:padding="8dp"
-                    android:background="?attr/selectableItemBackgroundBorderless" />
-
-                <TextView
-                    android:id="@+id/breadcrumbText"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="4dp"
-                    android:textSize="14sp"
-                    android:maxLines="1"
-                    android:ellipsize="start" />
-
-                <TextView
-                    android:id="@+id/editCollectionContentsButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="6dp"
-                    android:text="➕"
-                    android:textSize="15sp"
-                    android:padding="8dp"
-                    android:contentDescription="@string/add_to_collection"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:visibility="gone" />
-
-            </LinearLayout>
-
-            <View
-                android:layout_width="0dp"
-                android:layout_height="0dp"
-                android:layout_weight="1" />
-
             <TextView
-                android:id="@+id/searchToggleButton"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="🔍"
-                android:textSize="19sp"
-                android:padding="10dp"
-                android:contentDescription="@string/search_hint"
-                android:background="?attr/selectableItemBackgroundBorderless" />
-
-            <TextView
-                android:id="@+id/networkSharesButton"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="🌐"
-                android:textSize="19sp"
-                android:padding="10dp"
-                android:contentDescription="@string/network_shares_title"
-                android:background="?attr/selectableItemBackgroundBorderless" />
-
-            <TextView
-                android:id="@+id/tvModeButton"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="📺"
-                android:textSize="19sp"
-                android:padding="10dp"
-                android:contentDescription="@string/tv_mode"
-                android:background="?attr/selectableItemBackgroundBorderless" />
-
-            <TextView
-                android:id="@+id/settingsButton"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="⚙"
-                android:textSize="21sp"
-                android:padding="10dp"
-                android:contentDescription="@string/global_settings"
-                android:background="?attr/selectableItemBackgroundBorderless" />
-
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/searchRow"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:paddingHorizontal="16dp"
-            android:paddingBottom="8dp"
-            android:visibility="gone">
-
-            <EditText
-                android:id="@+id/searchField"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:layout_marginEnd="8dp"
-                android:hint="@string/search_hint"
-                android:inputType="text"
-                android:maxLines="1"
-                android:imeOptions="actionSearch"
-                android:background="@color/retro_surface"
-                android:paddingHorizontal="12dp"
-                android:paddingVertical="8dp" />
+                android:text="@string/library_tab_title"
+                android:textColor="@color/retro_text_primary"
+                android:textSize="18sp"
+                android:textStyle="bold" />
 
-            <TextView
-                android:id="@+id/sortButton"
+            <ImageView
+                android:id="@+id/settingsButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/sort_name"
-                android:textColor="@color/retro_teal"
-                android:paddingHorizontal="12dp"
-                android:paddingVertical="8dp"
-                android:background="?attr/selectableItemBackground" />
+                android:padding="10dp"
+                android:contentDescription="@string/global_settings"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_settings"
+                android:scaleType="centerInside"
+                app:tint="@color/retro_text_primary" />
+
+            <ImageView
+                android:id="@+id/refreshLibraryButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:padding="10dp"
+                android:contentDescription="@string/refresh_library"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_refresh"
+                android:scaleType="centerInside"
+                app:tint="@color/retro_text_primary" />
+
+            <ImageView
+                android:id="@+id/newBucketButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:padding="10dp"
+                android:contentDescription="@string/bucket_new"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_add"
+                android:scaleType="centerInside"
+                app:tint="@color/retro_text_primary" />
 
         </LinearLayout>
 
+        <FrameLayout
+            android:id="@+id/continueWatchingContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone">
+
+            <include
+                android:id="@+id/continueWatchingRail"
+                layout="@layout/item_continue_watching_rail" />
+
+        </FrameLayout>
+
         <TextView
-            android:id="@+id/emptyLibraryText"
+            android:id="@+id/emptyStateText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center"
             android:padding="32dp"
-            android:text="@string/library_empty"
+            android:textColor="@color/retro_text_muted"
+            android:text="@string/buckets_empty"
             android:visibility="gone" />
 
         <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/libraryList"
+            android:id="@+id/bucketList"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
@@ -161,24 +95,6 @@
 
     </LinearLayout>
 
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="@drawable/chrome_vignette"
-        android:clickable="false"
-        android:focusable="false"
-        android:importantForAccessibility="no" />
-
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/addFolderButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom|end"
-        android:layout_margin="20dp"
-        android:contentDescription="@string/add_folder"
-        android:src="@android:drawable/ic_input_add"
-        app:backgroundTint="@color/retro_teal"
-        app:tint="@color/retro_background"
-        app:elevation="6dp" />
+    <include layout="@layout/bottom_nav_bar" />
 
 </FrameLayout>

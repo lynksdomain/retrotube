@@ -18,6 +18,7 @@ import com.retrotube.app.tv.TvBrowseRowAdapter
 import com.retrotube.app.tv.TvChannelConfigRepository
 import com.retrotube.app.tv.TvChannelSource
 import java.util.concurrent.Executors
+import com.retrotube.app.util.applyTopBarInset
 
 /**
  * Browses a connected SMB share's own folder tree, the same way
@@ -57,6 +58,7 @@ class TvChannelPickSmbFolderActivity : AppCompatActivity() {
 
         binding = ActivityTvBrowseFolderBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        binding.root.applyTopBarInset()
         configRepository = TvChannelConfigRepository(this)
         metadataRepository = VideoMetadataRepository(this)
 
@@ -120,7 +122,8 @@ class TvChannelPickSmbFolderActivity : AppCompatActivity() {
     private fun loadChildrenAsync(share: NetworkShare, path: String) {
         adapter.submitList(emptyList())
         ioExecutor.execute {
-            val children = runCatching { SmbBrowser.listChildren(share, path) }.getOrDefault(emptyList())
+            val result = runCatching { SmbBrowser.listChildren(share, path) }
+            val children = result.getOrDefault(emptyList())
             val currentSources = configRepository.getChannels().firstOrNull { it.id == channelId }?.sources.orEmpty()
             val rows = children.mapNotNull { child ->
                 when (child) {
@@ -145,6 +148,12 @@ class TvChannelPickSmbFolderActivity : AppCompatActivity() {
                 if (currentShare == share && currentPath == path) {
                     adapter.submitList(rows)
                     binding.emptyStateText.visibility = if (rows.isEmpty()) View.VISIBLE else View.GONE
+                    val error = result.exceptionOrNull()
+                    binding.emptyStateText.text = when {
+                        error is java.net.SocketTimeoutException -> getString(R.string.folder_timed_out)
+                        error != null -> getString(R.string.folder_unreachable)
+                        else -> getString(R.string.tv_browse_folder_empty)
+                    }
                 }
             }
         }

@@ -13,31 +13,41 @@ import java.util.UUID
 data class TvChannelDefinition(
     val id: String,
     val sources: List<TvChannelSource>,
+    /** Optional, user-entered -- shown as the row subtitle alongside the
+     *  source count. Channels still have no *name*, only a position/number;
+     *  this is purely descriptive ("late-night anime," "background noise"). */
+    val description: String? = null,
 )
 
 /**
- * Persists the user's own TV Mode channel setup -- replaces recomputing
- * channels fresh from folders/collections every launch. Every library looks
- * different, so instead of one fixed auto-derivation this is just an ordered
- * list the user builds themselves (optionally seeded from auto-detection by
- * [TvAutoSeeder] on first setup, see [PlayerActivity]/`TvSetupActivity`).
- * Stored as one JSON blob -- small, nested, and optional-field-heavy enough
- * that the delimited-string convention used elsewhere (see
- * [com.retrotube.app.collections.CollectionRepository]) would need its own
- * escaping scheme for no real benefit.
+ * Persists the user's own TV Mode channel setup -- just an ordered list the
+ * user builds themselves, no auto-derivation from folders. Stored as one JSON
+ * blob -- small, nested, and optional-field-heavy enough that a delimited-
+ * string convention would need its own escaping scheme for no real benefit.
  */
 class TvChannelConfigRepository(context: Context) {
 
     private val prefs = context.getSharedPreferences("retrotube_tv_channels", Context.MODE_PRIVATE)
 
-    /** No config yet means this is the very first TV Mode launch -- the setup
-     *  wizard should run before anything else. */
-    fun isConfigured(): Boolean = prefs.contains(KEY_CHANNELS)
-
+    /** CH 01 always exists, even on a brand-new install -- there's no setup
+     *  wizard gate before TV Mode; the lineup just starts with one empty,
+     *  non-deletable channel the user builds onto (same seed-on-read pattern
+     *  as [com.retrotube.app.bucket.BucketRepository]'s TV/Movies buckets). */
     fun getChannels(): List<TvChannelDefinition> {
-        val raw = prefs.getString(KEY_CHANNELS, null) ?: return emptyList()
+        val raw = prefs.getString(KEY_CHANNELS, null)
+        if (raw == null) {
+            val seeded = listOf(TvChannelDefinition(id = UUID.randomUUID().toString(), sources = emptyList()))
+            saveChannels(seeded)
+            return seeded
+        }
         val array = runCatching { JSONArray(raw) }.getOrNull() ?: return emptyList()
-        return (0 until array.length()).mapNotNull { i -> parseChannel(array.optJSONObject(i)) }
+        val parsed = (0 until array.length()).mapNotNull { i -> parseChannel(array.optJSONObject(i)) }
+        if (parsed.isEmpty()) {
+            val seeded = listOf(TvChannelDefinition(id = UUID.randomUUID().toString(), sources = emptyList()))
+            saveChannels(seeded)
+            return seeded
+        }
+        return parsed
     }
 
     fun saveChannels(channels: List<TvChannelDefinition>) {
@@ -54,8 +64,21 @@ class TvChannelConfigRepository(context: Context) {
         return channel
     }
 
+    /** CH 01 always exists -- deleting it would leave the whole lineup unable
+     *  to boot into a first channel, so the channel currently in that first
+     *  position is the one delete refuses, not a fixed id (deleting anywhere
+     *  else can still promote a different channel into position one via
+     *  reordering, same as before). No-op if [channelId] is that first channel. */
     fun deleteChannel(channelId: String) {
-        saveChannels(getChannels().filterNot { it.id == channelId })
+        val channels = getChannels()
+        if (channels.firstOrNull()?.id == channelId) return
+        saveChannels(channels.filterNot { it.id == channelId })
+    }
+
+    fun setDescription(channelId: String, description: String?) {
+        saveChannels(
+            getChannels().map { if (it.id == channelId) it.copy(description = description?.ifBlank { null }) else it },
+        )
     }
 
     fun reorderChannels(orderedIds: List<String>) {
@@ -78,9 +101,8 @@ class TvChannelConfigRepository(context: Context) {
     }
 
     /** Individual videos are added one at a time from a checkable list (see
-     *  TvChannelPickVideosActivity), same interaction as adding to a collection --
-     *  so, like [com.retrotube.app.collections.CollectionRepository.addVideo],
-     *  toggling the same video twice is a no-op rather than a duplicate source. */
+     *  TvChannelPickVideosActivity) -- toggling the same video twice is a
+     *  no-op rather than a duplicate source. */
     fun addVideoSourceIfAbsent(channelId: String, uri: String, displayName: String) {
         val channels = getChannels()
         val channel = channels.firstOrNull { it.id == channelId } ?: return
@@ -107,6 +129,7 @@ class TvChannelConfigRepository(context: Context) {
         val sourcesArray = JSONArray()
         sources.forEach { sourcesArray.put(it.toJson()) }
         put("sources", sourcesArray)
+        if (description != null) put("description", description)
     }
 
     private fun parseChannel(json: JSONObject?): TvChannelDefinition? {
@@ -116,7 +139,8 @@ class TvChannelConfigRepository(context: Context) {
         val sources = (0 until sourcesArray.length()).mapNotNull { i ->
             TvChannelSource.fromJson(sourcesArray.optJSONObject(i) ?: return@mapNotNull null)
         }
-        return TvChannelDefinition(id, sources)
+        val description = json.optString("description").ifEmpty { null }
+        return TvChannelDefinition(id, sources, description)
     }
 
     companion object {

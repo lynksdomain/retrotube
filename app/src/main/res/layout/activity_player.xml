@@ -13,11 +13,19 @@
         app:use_controller="true"
         app:controller_layout_id="@layout/retro_player_control_view" />
 
+    <ProgressBar
+        android:id="@+id/loadingSpinner"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:indeterminateTint="@color/retro_teal"
+        android:visibility="gone" />
+
     <View
         android:id="@+id/ambientOverlay"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#CC000000"
+        android:background="#D9000000"
         android:clickable="false"
         android:focusable="false"
         android:importantForAccessibility="no"
@@ -40,27 +48,25 @@
         android:paddingEnd="20dp"
         android:visibility="gone">
 
-        <TextView
+        <ImageView
             android:id="@+id/channelUpButton"
             android:layout_width="56dp"
             android:layout_height="56dp"
-            android:text="▲"
-            android:textSize="20sp"
-            android:textColor="@android:color/white"
-            android:gravity="center"
             android:background="@drawable/poster_icon_background"
-            android:layout_marginBottom="16dp" />
+            android:layout_marginBottom="16dp"
+        android:src="@drawable/ic_keyboard_arrow_up"
+        android:scaleType="centerInside"
+        app:tint="@android:color/white" />
 
-        <TextView
+        <ImageView
             android:id="@+id/channelDownButton"
             android:layout_width="56dp"
             android:layout_height="56dp"
-            android:text="▼"
-            android:textSize="20sp"
-            android:textColor="@android:color/white"
-            android:gravity="center"
             android:background="@drawable/poster_icon_background"
-            android:layout_marginBottom="40dp" />
+            android:layout_marginBottom="40dp"
+        android:src="@drawable/ic_keyboard_arrow_down"
+        android:scaleType="centerInside"
+        app:tint="@android:color/white" />
 
         <ImageView
             android:id="@+id/exitTvModeButton"
@@ -70,7 +76,18 @@
             android:src="@drawable/ic_power"
             android:contentDescription="@string/tv_mode_exit"
             android:background="@drawable/poster_icon_background"
-            app:tint="@color/retro_magenta" />
+            app:tint="@color/retro_magenta"
+            android:layout_marginBottom="16dp" />
+
+        <ImageView
+            android:id="@+id/tvCurvatureToggleButton"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:background="@drawable/poster_icon_background"
+            android:contentDescription="@string/tv_curvature_toggle"
+        android:src="@drawable/ic_panorama_fish_eye"
+        android:scaleType="centerInside"
+        app:tint="@color/retro_teal" />
 
     </LinearLayout>
 

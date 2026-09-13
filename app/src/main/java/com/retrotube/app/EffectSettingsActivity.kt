@@ -17,6 +17,7 @@ import com.retrotube.app.settings.VideoEffectSettings
 import com.retrotube.app.shader.DownscaleTarget
 import com.retrotube.app.shader.PresetPreviewRenderer
 import com.retrotube.app.shader.ShaderPreset
+import com.retrotube.app.util.applyTopBarInset
 
 /**
  * Edits either the app-wide default effect settings, or a per-file override
@@ -42,6 +43,7 @@ class EffectSettingsActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        binding.root.applyTopBarInset()
 
         settingsRepository = SettingsRepository(this)
         mode = intent.getStringExtra(EXTRA_MODE) ?: MODE_GLOBAL

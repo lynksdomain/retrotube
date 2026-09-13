@@ -9,9 +9,17 @@
     <string name="curvature_label">Curvature (screen warp)</string>
     <string name="downscale_label">CRT Resolution</string>
     <string name="aspect_label">Aspect Ratio</string>
-    <string name="add_folder">Add Folder</string>
     <string name="global_settings">Default Settings</string>
-    <string name="library_empty">No videos yet. Tap \"Add Folder\" to point RetroTube at a folder of videos.</string>
+    <string name="library_tab_title">Library</string>
+    <string name="sources_title">Sources</string>
+    <string name="sources_empty">Nothing added yet. Tap + to add a local folder or a network share.</string>
+    <string name="add_source">Add Source</string>
+    <string name="add_source_local_folder">Local Folder</string>
+    <string name="add_source_network_share">Network Share</string>
+    <string name="sources_scope_local">Local</string>
+    <string name="sources_scope_network">Network</string>
+    <string name="add_to_library_menu">Add to Library</string>
+    <string name="edit_source_title">Edit Source</string>
     <string name="save_defaults">Save Defaults</string>
     <string name="save_override">Save for This Video</string>
     <string name="clear_override">Clear Override</string>
@@ -21,12 +29,12 @@
     <string name="remove">Remove</string>
     <string name="compare_button">SHOW RAW</string>
     <string name="compare_button_active">SHOWING RAW</string>
-    <string name="continue_watching">Continue Watching</string>
-    <string name="search_hint">Search this folder</string>
-    <string name="sort_name">Sort: Name</string>
-    <string name="sort_date">Sort: Date</string>
+    <!-- Rail label only: the underlying data/store is still "Continue Watching"
+         everywhere else (same PlaybackProgressRepository, same hide/resume rules);
+         this is purely the parity-spec's rename of the visible rail heading. -->
+    <string name="continue_watching">Recently Viewed</string>
     <string name="effect_settings_for_video">Effect settings</string>
-    <string name="remove_from_continue_watching">Remove from Continue Watching</string>
+    <string name="remove_from_continue_watching">Remove from Recently Viewed</string>
     <string name="edit_title_and_poster">Edit title &amp; poster</string>
     <string name="video_metadata_title">Edit Title &amp; Poster</string>
     <string name="title_input_label">Title</string>
@@ -35,19 +43,12 @@
     <string name="save_metadata">Save</string>
     <string name="reset_to_auto">Reset to Auto</string>
     <string name="tags_input_label">Tags (comma separated)</string>
-    <string name="add_to_collection">Add to collection</string>
-    <string name="new_collection">New collection…</string>
-    <string name="new_collection_prompt_title">New collection name</string>
     <string name="create">Create</string>
-    <string name="collection_video_count">%1$d videos</string>
-    <string name="remove_collection_title">Delete \"%1$s\"?</string>
-    <string name="remove_collection_message">This only removes the collection -- your files are untouched.</string>
-    <string name="collections_section_title">Collections</string>
     <string name="network_section_title">Network</string>
     <string name="library_section_title">Library</string>
-    <string name="network_shares_title">Network Shares</string>
     <string name="no_network_shares">No network shares yet. Connect to a NAS or a computer sharing files over SMB.</string>
     <string name="add_network_share">Add Network Share</string>
+    <string name="edit_network_share">Edit Network Share</string>
     <string name="share_name_hint">Name (e.g. Mac mini)</string>
     <string name="share_host_hint">Host or IP address</string>
     <string name="share_folder_hint">Shared folder name</string>
@@ -57,31 +58,30 @@
     <string name="connecting">Connecting…</string>
     <string name="connection_failed">Couldn\'t connect: %1$s</string>
     <string name="playback_failed">Playback failed: %1$s</string>
-    <string name="tv_mode_no_content">Add some videos or collections first to use TV Mode</string>
+    <string name="tv_mode_no_content">Add some videos to a channel first to use TV Mode</string>
     <string name="tv_mode">TV Mode</string>
     <string name="tv_mode_exit">Exit TV Mode</string>
     <string name="tv_channel_osd">CH %02d</string>
     <string name="ok">OK</string>
     <string name="cancel">Cancel</string>
-    <string name="tv_setup_title">Set Up TV Mode</string>
-    <string name="tv_setup_subtitle">Every library is different, so you program the channels -- start from what we can auto-detect, or build your own from scratch. Either way you can keep editing later.</string>
-    <string name="tv_setup_auto_button">Auto-Generate Channels</string>
-    <string name="tv_setup_auto_hint">One channel per folder and collection, plus your connected shares</string>
-    <string name="tv_setup_manual_button">Build My Own</string>
-    <string name="tv_setup_manual_hint">Start with an empty channel list</string>
     <string name="tv_channel_editor_title">TV Channels</string>
     <string name="tv_channel_editor_launch">▶ TV Mode</string>
     <string name="tv_channel_editor_empty">No channels yet -- add one below</string>
     <string name="tv_add_channel">Add Channel</string>
-    <string name="tv_channel_number">CH %1$d</string>
+    <string name="tv_channel_number">CH %1$02d</string>
+    <string name="edit">Edit</string>
     <string name="tv_channel_source_count">%1$d source(s)</string>
-    <string name="tv_channel_detail_empty">No sources yet -- add a folder, collection, or some videos</string>
+    <string name="tv_channel_detail_empty">No sources yet -- add a folder or some videos</string>
     <string name="tv_add_source">Add Source</string>
+    <string name="tv_channel_add_description">Add a description (optional)</string>
+    <string name="tv_channel_edit_description">Channel description</string>
+    <string name="tv_curvature_toggle">Toggle CRT curvature</string>
+    <string name="nav_tab_library">Library</string>
+    <string name="nav_tab_tv">TV</string>
+    <string name="nav_tab_sources">Sources</string>
     <string name="tv_add_source_local_folder">Local Folder</string>
     <string name="tv_add_source_smb_folder">Network Share</string>
-    <string name="tv_add_source_collection">Collection</string>
     <string name="tv_add_source_videos">Individual Videos</string>
-    <string name="tv_no_collections">No collections yet</string>
     <string name="tv_pick_folder_title">Choose a Folder</string>
     <string name="tv_pick_share_title">Choose a Share</string>
     <string name="tv_add_this_folder">Add \"%1$s\"</string>
@@ -91,9 +91,8 @@
     <string name="connection_succeeded">Connected -- found %1$d item(s)</string>
     <string name="remove_share_title">Remove \"%1$s\"?</string>
     <string name="remove_share_message">This only forgets the connection -- nothing on the share is touched.</string>
-    <string name="manage_collection_title">Add to %1$s</string>
     <string name="search_all_videos_hint">Search all videos</string>
-    <string name="no_videos_in_library">No videos found. Add a folder from the library first.</string>
+    <string name="no_videos_in_library">No videos found. Add a folder from the Sources tab first.</string>
 
     <!-- Row titles + descriptions for the effect settings screen. -->
     <string name="title_zfast_crt">zfast-crt</string>
@@ -138,4 +137,83 @@
     <string name="welcome_title">Welcome to RetroTube</string>
     <string name="welcome_message">1. Tap "Add Folder" to point RetroTube at your videos.\n\n2. Tap any video to play it with real CRT shaders.\n\n3. Tap the ⋮ next to any video to pick a different look just for that file, or use "Default Settings" to change the look for everything.</string>
     <string name="welcome_got_it">Got it</string>
+
+    <!-- Phase 3: Buckets / Shows / Movies / tagging flow -->
+    <string name="buckets_empty">No custom buckets yet</string>
+    <string name="bucket_new">New Bucket…</string>
+    <string name="bucket_new_prompt_title">New bucket name</string>
+    <string name="bucket_content_empty">Nothing tagged into this bucket yet</string>
+    <string name="add_to_library_title">Add \"%1$s\" to Library</string>
+    <string name="add_to_this_shelf">Add \"%1$s\" To</string>
+    <string name="shelf_label">Shelf</string>
+    <string name="whats_in_this_folder">What\'s In This Folder?</string>
+    <string name="new_shelf_prompt_title">New shelf name</string>
+    <string name="add_to_library_single_show">This is a single TV show</string>
+    <string name="add_to_library_category_of_shows">This is a folder of shows (each subfolder is a show)</string>
+    <string name="add_to_library_movies">This is a folder of movies</string>
+    <string name="add_to_library_skip">Just add the files, don\'t tag it</string>
+    <string name="add_to_library_single_show_desc">This whole folder is one show — everything inside it, seasons and all, gets matched as episodes of it.</string>
+    <string name="add_to_library_category_of_shows_desc">Each subfolder in here is a different show (e.g. Death Note, DBZ) — every one gets matched separately.</string>
+    <string name="add_to_library_movies_desc">Every video file in here is its own movie, matched independently.</string>
+    <string name="add_to_library_matching">Matching against TMDB…</string>
+    <string name="add_to_library_done">Matched \"%1$s\"</string>
+    <string name="add_to_library_no_match">Couldn\'t find a TMDB match for \"%1$s\"</string>
+    <string name="show_seasons_empty">No seasons found yet</string>
+    <string name="season_number">Season %1$d</string>
+    <string name="episode_number">Episode %1$d</string>
+    <string name="season_episodes_empty">No episodes found in this season</string>
+    <string name="movie_play">Play</string>
+    <string name="movie_runtime_minutes">%1$d min</string>
+    <string name="force_refresh">Force Refresh</string>
+    <string name="refresh_library">Refresh Library</string>
+    <string name="refresh_started">Refreshing…</string>
+    <string name="refresh_done">Refresh complete</string>
+    <string name="scraping_matching_single">Matching \"%1$s\"…</string>
+    <string name="scraping_progress_format">Matching %1$d of %2$d…</string>
+    <string name="edit_info">Edit Info</string>
+    <string name="find_match_online">Find Match Online</string>
+    <string name="find_match_online_go">Go</string>
+    <string name="tmdb_searching">Searching…</string>
+    <string name="tmdb_no_results">No matches found</string>
+    <string name="poster_label">Poster</string>
+    <string name="remove_from_library">Remove from Library</string>
+    <string name="removed_from_library">Removed from Library</string>
+    <string name="manage_sources">Manage Sources</string>
+    <string name="manage_sources_title">Manage Sources</string>
+    <string name="manage_sources_empty">Nothing tagged into this bucket yet</string>
+    <string name="done">Done</string>
+
+    <!-- Phase 5: Subtitles -->
+    <string name="subtitles_button">Subtitles</string>
+    <string name="subtitles_sheet_title">Audio &amp; Subtitles</string>
+    <string name="subtitles_none">Off</string>
+    <string name="subtitles_sidecar_found">Found alongside file</string>
+    <string name="subtitles_downloaded_found">Downloaded subtitle</string>
+    <string name="subtitles_embedded_found">Embedded in file</string>
+    <string name="subtitles_track_generic">Subtitle Track %1$d</string>
+    <string name="subtitles_search_online">Search OpenSubtitles…</string>
+    <string name="subtitles_delay_label">Sync delay (seconds)</string>
+    <string name="subtitles_speed_label">Sync speed</string>
+    <string name="subtitles_size_label">Text size (% of screen height)</string>
+    <string name="subtitles_sync_and_size">Sync &amp; size…</string>
+    <string name="subtitles_sync_unavailable_bitmap">Delay/speed sync isn\'t available for this subtitle track (a bitmap format like PGS or VobSub) -- only size can be adjusted.</string>
+    <string name="opensubtitles_not_configured">No OpenSubtitles API key configured for this build</string>
+    <string name="opensubtitles_searching">Searching OpenSubtitles…</string>
+    <string name="opensubtitles_no_results">No subtitles found for this title</string>
+    <string name="opensubtitles_download_failed">Couldn\'t download that subtitle -- OpenSubtitles may be temporarily unavailable, try again shortly</string>
+
+    <!-- Phase 7: WiFi Import -->
+    <string name="wifi_import_title">WiFi Import</string>
+    <string name="wifi_import_instructions">On a computer or phone connected to the same WiFi, open this address in a browser:</string>
+    <string name="wifi_import_pin_label">PIN: %1$s</string>
+    <string name="wifi_import_start">Start Server</string>
+    <string name="wifi_import_stop">Stop Server</string>
+    <string name="wifi_import_not_on_wifi">Connect to WiFi to use WiFi Import</string>
+    <string name="wifi_import_received">Received \"%1$s\"</string>
+
+    <!-- Phase 8: distinct empty/error states -->
+    <string name="folder_empty_genuinely">This folder is empty</string>
+    <string name="folder_unreachable">Couldn\'t reach this share -- check the connection and try again</string>
+    <string name="folder_timed_out">Timed out reaching this share</string>
+    <string name="partial_content_warning">Some items may be missing -- part of this listing timed out</string>
 </resources>

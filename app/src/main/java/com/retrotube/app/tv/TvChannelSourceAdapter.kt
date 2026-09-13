@@ -6,15 +6,23 @@ import androidx.recyclerview.widget.RecyclerView
 import com.retrotube.app.databinding.ItemTvSourceRowBinding
 
 /** One channel's sources, in the order they were added -- that order is the
- *  playback order, so this list is display + remove only, no reordering. */
+ *  playback order, so this list is display + remove only, no reordering. An
+ *  "Edit" toolbar toggle reveals a red remove-circle per row (matching the
+ *  iOS list-editing affordance) instead of a delete button always on screen. */
 class TvChannelSourceAdapter(
     private val onRemove: (Int) -> Unit,
 ) : RecyclerView.Adapter<TvChannelSourceAdapter.ViewHolder>() {
 
     private var sources: List<TvChannelSource> = emptyList()
+    private var editMode: Boolean = false
 
     fun submitList(newSources: List<TvChannelSource>) {
         sources = newSources
+        notifyDataSetChanged()
+    }
+
+    fun setEditMode(enabled: Boolean) {
+        editMode = enabled
         notifyDataSetChanged()
     }
 
@@ -24,6 +32,7 @@ class TvChannelSourceAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val source = sources[position]
         holder.binding.rowLabel.text = labelFor(source)
+        holder.binding.rowRemoveButton.visibility = if (editMode) android.view.View.VISIBLE else android.view.View.GONE
         holder.binding.rowRemoveButton.setOnClickListener { onRemove(holder.bindingAdapterPosition) }
     }
 
@@ -32,7 +41,6 @@ class TvChannelSourceAdapter(
     private fun labelFor(source: TvChannelSource): String = when (source) {
         is TvChannelSource.LocalFolder -> "📁 ${source.displayName}"
         is TvChannelSource.SmbFolder -> "🌐 ${source.displayName}"
-        is TvChannelSource.Collection -> "🎬 ${source.displayName}"
         is TvChannelSource.Video -> "▶ ${source.displayName}"
     }
 

@@ -7,9 +7,12 @@
          share the user explicitly connects to on their own local network,
          never anything beyond that. -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
 
     <application
         android:allowBackup="true"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:label="RetroTube"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
@@ -34,15 +37,7 @@
             android:exported="false" />
 
         <activity
-            android:name=".NetworkSharesActivity"
-            android:exported="false" />
-
-        <activity
-            android:name=".CollectionEditActivity"
-            android:exported="false" />
-
-        <activity
-            android:name=".TvSetupActivity"
+            android:name=".SourcesActivity"
             android:exported="false" />
 
         <activity
@@ -66,10 +61,48 @@
             android:exported="false" />
 
         <activity
+            android:name=".BucketContentActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ShowDetailActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".SeasonEpisodesActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".MovieDetailActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".MovieEditInfoActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".SourceEditInfoActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".WifiImportActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".PlayerActivity"
             android:exported="false"
             android:configChanges="orientation|screenSize|keyboardHidden"
             android:theme="@style/Theme.RetroTube.Player" />
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
 
     </application>
 </manifest>

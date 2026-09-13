@@ -26,8 +26,15 @@ class LibraryRepository(private val context: Context) {
     fun getRootDocuments(): List<LibraryItem.FolderItem> =
         prefs.getStringSet(KEY_FOLDERS, emptySet()).orEmpty().mapNotNull { uriString ->
             runCatching {
-                val treeUri = Uri.parse(uriString)
-                val doc = DocumentFile.fromTreeUri(context, treeUri) ?: return@mapNotNull null
+                val uri = Uri.parse(uriString)
+                // "file" here is the app's own private WiFi Import folder (see
+                // WifiImportServer) -- it needs no SAF tree resolution or permission,
+                // just a plain File-backed DocumentFile.
+                val doc = if (uri.scheme == "file") {
+                    DocumentFile.fromFile(java.io.File(uri.path ?: return@mapNotNull null))
+                } else {
+                    DocumentFile.fromTreeUri(context, uri) ?: return@mapNotNull null
+                }
                 LibraryItem.FolderItem(doc, doc.name ?: "Folder")
             }.getOrNull()
         }.sortedBy { it.name.lowercase() }
@@ -39,6 +46,15 @@ class LibraryRepository(private val context: Context) {
         )
         val current = prefs.getStringSet(KEY_FOLDERS, emptySet()).orEmpty().toMutableSet()
         current.add(treeUri.toString())
+        prefs.edit().putStringSet(KEY_FOLDERS, current).apply()
+    }
+
+    /** Registers the app's own private WiFi Import folder as a normal library root
+     *  -- a `file://` URI needs no persistable SAF permission (the app always has
+     *  access to its own storage), so this skips straight to storing it. */
+    fun addInternalFolder(fileUri: Uri) {
+        val current = prefs.getStringSet(KEY_FOLDERS, emptySet()).orEmpty().toMutableSet()
+        current.add(fileUri.toString())
         prefs.edit().putStringSet(KEY_FOLDERS, current).apply()
     }
 

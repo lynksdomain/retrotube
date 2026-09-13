@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="10dp"
+    android:clickable="true"
+    android:focusable="true"
+    app:cardBackgroundColor="@color/retro_surface"
+    app:cardCornerRadius="10dp"
+    app:cardElevation="0dp"
+    app:strokeWidth="1dp"
+    app:strokeColor="@color/card_stroke"
+    app:rippleColor="@color/retro_teal">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="10dp">
+
+        <ImageView
+            android:id="@+id/episodeThumbnail"
+            android:layout_width="140dp"
+            android:layout_height="0dp"
+            android:scaleType="centerCrop"
+            android:background="@color/thumbnail_placeholder"
+            app:layout_constraintDimensionRatio="16:9"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent" />
+
+        <TextView
+            android:id="@+id/episodeLabel"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_marginEnd="8dp"
+            android:textColor="@color/retro_teal"
+            android:textStyle="bold"
+            android:textSize="12sp"
+            app:layout_constraintTop_toTopOf="@id/episodeThumbnail"
+            app:layout_constraintStart_toEndOf="@id/episodeThumbnail"
+            app:layout_constraintEnd_toStartOf="@id/episodeChevron" />
+
+        <TextView
+            android:id="@+id/episodeTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_marginEnd="8dp"
+            android:layout_marginTop="2dp"
+            android:textColor="@color/retro_text_primary"
+            android:textStyle="bold"
+            android:textSize="15sp"
+            android:maxLines="1"
+            android:ellipsize="end"
+            app:layout_constraintTop_toBottomOf="@id/episodeLabel"
+            app:layout_constraintStart_toEndOf="@id/episodeThumbnail"
+            app:layout_constraintEnd_toStartOf="@id/episodeChevron" />
+
+        <TextView
+            android:id="@+id/episodeAirDate"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_marginEnd="8dp"
+            android:layout_marginTop="2dp"
+            android:textColor="@color/retro_text_muted"
+            android:textSize="12sp"
+            android:visibility="gone"
+            app:layout_constraintTop_toBottomOf="@id/episodeTitle"
+            app:layout_constraintStart_toEndOf="@id/episodeThumbnail"
+            app:layout_constraintEnd_toStartOf="@id/episodeChevron" />
+
+        <TextView
+            android:id="@+id/episodeOverview"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_marginEnd="8dp"
+            android:layout_marginTop="4dp"
+            android:textColor="@color/retro_text_muted"
+            android:textSize="12.5sp"
+            android:maxLines="3"
+            android:ellipsize="end"
+            android:visibility="gone"
+            app:layout_constraintTop_toBottomOf="@id/episodeAirDate"
+            app:layout_constraintStart_toEndOf="@id/episodeThumbnail"
+            app:layout_constraintEnd_toStartOf="@id/episodeChevron" />
+
+        <ImageView
+            android:id="@+id/episodeChevron"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:src="@drawable/ic_chevron_right"
+            android:scaleType="centerInside"
+            app:tint="@color/retro_text_muted"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</com.google.android.material.card.MaterialCardView>

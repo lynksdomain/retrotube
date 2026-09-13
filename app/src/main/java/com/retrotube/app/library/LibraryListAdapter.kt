@@ -7,35 +7,32 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.animation.OvershootInterpolator
 import android.widget.TextView
-import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.retrotube.app.R
-import com.retrotube.app.collections.CollectionRepository
-import com.retrotube.app.databinding.ItemCollectionBinding
-import com.retrotube.app.databinding.ItemContinueWatchingRailBinding
 import com.retrotube.app.databinding.ItemFolderBinding
 import com.retrotube.app.databinding.ItemVideoBinding
+import com.retrotube.app.metadata.FolderMetadataRepository
 import com.retrotube.app.metadata.VideoMetadataRepository
 import com.retrotube.app.network.NetworkShareRepository
+import com.retrotube.app.network.SmbUri
 import com.retrotube.app.progress.PlaybackProgressRepository
 import com.retrotube.app.settings.SettingsRepository
 
 /** Folders and videos share one poster grid -- a subfolder is a card that opens
  *  onto its own grid, same as any other browsable shelf, rather than a separate
- *  file-tree list sitting above the videos. The Continue Watching rail rides
- *  along as a full-width row inside that same grid, so it scrolls away with
- *  everything else instead of staying pinned above it. */
+ *  file-tree list sitting above the videos. This is the Sources tab's raw
+ *  browsing surface: local folders and SMB shares, nothing else -- no
+ *  Continue Watching rail (that lives on the Library tab now, alongside the
+ *  buckets it belongs with) and no Collections (removed entirely; TV Mode
+ *  channels reference sources directly instead). */
 class LibraryListAdapter(
     private val context: Context,
     private val onFolderClick: (LibraryItem.FolderItem) -> Unit,
-    private val onFolderRemoveClick: (LibraryItem.FolderItem) -> Unit,
+    private val onFolderMenuClick: (LibraryItem.FolderItem, View) -> Unit,
     private val onVideoClick: (LibraryItem.VideoItem) -> Unit,
     private val onVideoMenuClick: (LibraryItem.VideoItem, View) -> Unit,
-    private val onCollectionClick: (LibraryItem.CollectionItem) -> Unit,
-    private val onCollectionRemoveClick: (LibraryItem.CollectionItem) -> Unit,
-    private val onCollectionEditPosterClick: (LibraryItem.CollectionItem) -> Unit,
     private val onSmbFolderClick: (LibraryItem.SmbFolderItem) -> Unit,
-    private val onSmbShareRemoveClick: (LibraryItem.SmbFolderItem) -> Unit,
+    private val onSmbFolderMenuClick: (LibraryItem.SmbFolderItem, View) -> Unit,
     private val onSmbVideoClick: (LibraryItem.SmbVideoItem) -> Unit,
     private val onSmbVideoMenuClick: (LibraryItem.SmbVideoItem, View) -> Unit,
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
@@ -43,46 +40,28 @@ class LibraryListAdapter(
     private val progressRepository = PlaybackProgressRepository(context)
     private val settingsRepository = SettingsRepository(context)
     private val metadataRepository = VideoMetadataRepository(context)
-    private val collectionRepository = CollectionRepository(context)
     private val networkShareRepository = NetworkShareRepository(context)
+    private val folderMetadataRepository = FolderMetadataRepository(context)
 
     private var items: List<LibraryItem> = emptyList()
-    private var isRootLevel: Boolean = false
 
-    fun submitList(newItems: List<LibraryItem>, isRootLevel: Boolean) {
+    fun submitList(newItems: List<LibraryItem>) {
         items = newItems
-        this.isRootLevel = isRootLevel
         notifyDataSetChanged()
     }
 
-    /** Read-only snapshot of what's currently shown, in display order -- used to
-     *  persist a collection's order after a drag reorder. */
     fun currentItems(): List<LibraryItem> = items
 
-    /** Moves an item from [from] to [to] with an animated shift rather than a full
-     *  rebind, for drag-to-reorder inside a collection. */
-    fun moveItem(from: Int, to: Int) {
-        if (from == to) return
-        val mutable = items.toMutableList()
-        val moved = mutable.removeAt(from)
-        mutable.add(to, moved)
-        items = mutable
-        notifyItemMoved(from, to)
-    }
-
-    /** Folders, videos and collections are single grid cells; the Continue Watching
-     *  rail and section headers span the whole row. */
+    /** Folders and videos are single grid cells; section headers span the whole row. */
     fun spanSizeFor(position: Int, spanCount: Int): Int =
         when (items[position]) {
-            is LibraryItem.ContinueWatchingRail, is LibraryItem.SectionHeader -> spanCount
+            is LibraryItem.SectionHeader -> spanCount
             else -> 1
         }
 
     override fun getItemViewType(position: Int): Int = when (items[position]) {
         is LibraryItem.FolderItem, is LibraryItem.SmbFolderItem -> VIEW_TYPE_FOLDER
         is LibraryItem.VideoItem, is LibraryItem.SmbVideoItem -> VIEW_TYPE_VIDEO
-        is LibraryItem.ContinueWatchingRail -> VIEW_TYPE_CONTINUE_WATCHING_RAIL
-        is LibraryItem.CollectionItem -> VIEW_TYPE_COLLECTION
         is LibraryItem.SectionHeader -> VIEW_TYPE_SECTION_HEADER
     }
 
@@ -90,10 +69,6 @@ class LibraryListAdapter(
         val inflater = LayoutInflater.from(parent.context)
         return when (viewType) {
             VIEW_TYPE_FOLDER -> FolderViewHolder(ItemFolderBinding.inflate(inflater, parent, false))
-            VIEW_TYPE_COLLECTION -> CollectionViewHolder(ItemCollectionBinding.inflate(inflater, parent, false))
-            VIEW_TYPE_CONTINUE_WATCHING_RAIL -> RailViewHolder(
-                ItemContinueWatchingRailBinding.inflate(inflater, parent, false),
-            )
             VIEW_TYPE_SECTION_HEADER -> SectionHeaderViewHolder(
                 inflater.inflate(R.layout.item_section_header, parent, false) as TextView,
             )
@@ -105,31 +80,24 @@ class LibraryListAdapter(
         when (val item = items[position]) {
             is LibraryItem.FolderItem -> {
                 holder as FolderViewHolder
-                holder.binding.folderName.text = item.name
-                holder.binding.root.setOnClickListener { onFolderClick(item) }
-                holder.binding.root.applySpringPress()
-                if (isRootLevel) {
-                    holder.binding.removeFolderButton.visibility = View.VISIBLE
-                    holder.binding.removeFolderButton.setOnClickListener { onFolderRemoveClick(item) }
-                } else {
-                    holder.binding.removeFolderButton.visibility = View.GONE
-                    holder.binding.removeFolderButton.setOnClickListener(null)
-                }
+                bindFolderCard(
+                    holder,
+                    folderKey = item.document.uri.toString(),
+                    rawName = item.name,
+                    onClick = { onFolderClick(item) },
+                    onMenuClick = { anchor -> onFolderMenuClick(item, anchor) },
+                )
             }
             is LibraryItem.SmbFolderItem -> {
                 holder as FolderViewHolder
-                holder.binding.folderName.text = item.name
-                holder.binding.root.setOnClickListener { onSmbFolderClick(item) }
-                holder.binding.root.applySpringPress()
-                // Only the share's own root card (reached from the library root) is
-                // removable -- a subfolder inside a share is just something you browse.
-                if (item.relativePath.isEmpty()) {
-                    holder.binding.removeFolderButton.visibility = View.VISIBLE
-                    holder.binding.removeFolderButton.setOnClickListener { onSmbShareRemoveClick(item) }
-                } else {
-                    holder.binding.removeFolderButton.visibility = View.GONE
-                    holder.binding.removeFolderButton.setOnClickListener(null)
-                }
+                val folderKey = SmbUri.build(item.shareId, item.relativePath).toString()
+                bindFolderCard(
+                    holder,
+                    folderKey = folderKey,
+                    rawName = item.name,
+                    onClick = { onSmbFolderClick(item) },
+                    onMenuClick = { anchor -> onSmbFolderMenuClick(item, anchor) },
+                )
             }
             is LibraryItem.VideoItem -> {
                 holder as VideoViewHolder
@@ -158,33 +126,37 @@ class LibraryListAdapter(
                     onMenuClick = { anchor -> onSmbVideoMenuClick(item, anchor) },
                 )
             }
-            is LibraryItem.ContinueWatchingRail -> {
-                holder as RailViewHolder
-                holder.railAdapter.submitList(item.videos)
-            }
-            is LibraryItem.CollectionItem -> {
-                holder as CollectionViewHolder
-                holder.binding.collectionName.text = item.name
-                holder.binding.collectionVideoCount.text =
-                    context.getString(R.string.collection_video_count, item.videoCount)
-                holder.binding.root.setOnClickListener { onCollectionClick(item) }
-                holder.binding.root.applySpringPress()
-                holder.binding.removeCollectionButton.setOnClickListener { onCollectionRemoveClick(item) }
-                holder.binding.editCollectionPosterButton.setOnClickListener { onCollectionEditPosterClick(item) }
-
-                val poster = collectionRepository.getPoster(item.id)
-                if (poster != null) {
-                    holder.binding.collectionPosterImage.visibility = View.VISIBLE
-                    holder.binding.collectionPosterImage.setImageBitmap(poster)
-                } else {
-                    holder.binding.collectionPosterImage.visibility = View.GONE
-                }
-            }
             is LibraryItem.SectionHeader -> {
                 holder as SectionHeaderViewHolder
                 holder.textView.text = item.title
             }
         }
+    }
+
+    /** Shared bind logic for both SAF and SMB folder cards -- a folder can carry
+     *  a user-set title/poster override (edited via the "⋯" menu) regardless of
+     *  whether it's tagged into a bucket yet; falls back to the raw folder name
+     *  and a plain folder-icon placeholder when nothing's been set. */
+    private fun bindFolderCard(
+        holder: FolderViewHolder,
+        folderKey: String,
+        rawName: String,
+        onClick: () -> Unit,
+        onMenuClick: (View) -> Unit,
+    ) {
+        holder.binding.folderName.text = folderMetadataRepository.getCustomTitle(folderKey) ?: rawName
+        val customPoster = folderMetadataRepository.getPoster(folderKey)
+        if (customPoster != null) {
+            holder.binding.folderPoster.setImageBitmap(customPoster)
+            holder.binding.folderPoster.visibility = View.VISIBLE
+            holder.binding.folderPlaceholderIcon.visibility = View.GONE
+        } else {
+            holder.binding.folderPoster.visibility = View.GONE
+            holder.binding.folderPlaceholderIcon.visibility = View.VISIBLE
+        }
+        holder.binding.root.setOnClickListener { onClick() }
+        holder.binding.root.applySpringPress()
+        holder.binding.folderMenuButton.setOnClickListener { onMenuClick(holder.binding.folderMenuButton) }
     }
 
     /** Shared bind logic for both SAF and SMB video cards -- everything about the poster
@@ -258,26 +230,11 @@ class LibraryListAdapter(
 
     class FolderViewHolder(val binding: ItemFolderBinding) : RecyclerView.ViewHolder(binding.root)
     class VideoViewHolder(val binding: ItemVideoBinding) : RecyclerView.ViewHolder(binding.root)
-    class CollectionViewHolder(val binding: ItemCollectionBinding) : RecyclerView.ViewHolder(binding.root)
     class SectionHeaderViewHolder(val textView: TextView) : RecyclerView.ViewHolder(textView)
-
-    inner class RailViewHolder(
-        private val binding: ItemContinueWatchingRailBinding,
-    ) : RecyclerView.ViewHolder(binding.root) {
-        val railAdapter = ContinueWatchingAdapter(context, onClick = onVideoClick)
-
-        init {
-            binding.continueWatchingList.layoutManager =
-                LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
-            binding.continueWatchingList.adapter = railAdapter
-        }
-    }
 
     companion object {
         private const val VIEW_TYPE_FOLDER = 0
         private const val VIEW_TYPE_VIDEO = 1
-        private const val VIEW_TYPE_CONTINUE_WATCHING_RAIL = 2
-        private const val VIEW_TYPE_COLLECTION = 3
-        private const val VIEW_TYPE_SECTION_HEADER = 4
+        private const val VIEW_TYPE_SECTION_HEADER = 2
     }
 }

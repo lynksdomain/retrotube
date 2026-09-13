@@ -1,160 +1,96 @@
 package com.retrotube.app
 
-import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-import android.text.Editable
-import android.text.TextWatcher
 import android.view.View
-import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.PopupMenu
-import android.widget.Toast
-import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AlertDialog
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.documentfile.provider.DocumentFile
 import androidx.recyclerview.widget.GridLayoutManager
-import androidx.recyclerview.widget.ItemTouchHelper
+import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.retrotube.app.collections.CollectionRepository
+import com.retrotube.app.bucket.Bucket
+import com.retrotube.app.bucket.BucketRepository
+import com.retrotube.app.bucket.ContentKind
 import com.retrotube.app.databinding.ActivityLibraryBinding
-import com.retrotube.app.library.LibraryItem
-import com.retrotube.app.library.LibraryListAdapter
+import com.retrotube.app.databinding.DialogManageSourcesBinding
+import com.retrotube.app.databinding.ItemBucketTileBinding
+import com.retrotube.app.databinding.ItemManageSourceRowBinding
+import com.retrotube.app.library.ContinueWatchingAdapter
+import com.retrotube.app.library.FolderVideoScanner
 import com.retrotube.app.library.LibraryRepository
+import com.retrotube.app.library.TaggedFolder
+import com.retrotube.app.library.TaggedFolderRepository
+import com.retrotube.app.metadata.FolderMetadataRepository
+import com.retrotube.app.metadata.VideoMetadataRepository
+import com.retrotube.app.metadata.tmdb.MatchingEngine
+import com.retrotube.app.metadata.tmdb.VideoRef
 import com.retrotube.app.network.NetworkShareRepository
-import com.retrotube.app.network.SmbBrowser
+import com.retrotube.app.network.SmbUri
+import com.retrotube.app.util.ScrapingProgressOverlay
 import com.retrotube.app.progress.PlaybackProgressRepository
-import com.retrotube.app.settings.SettingsRepository
 import java.util.concurrent.Executors
+import com.retrotube.app.util.applyTopBarInset
 
+/**
+ * The Library tab: buckets referencing sources, showing rich TMDB metadata --
+ * the default TV and Movies shelves (never deletable) plus any custom
+ * buckets, with Continue Watching on top. This is the app's launcher/home
+ * screen. Raw source management (adding/browsing local folders and SMB
+ * shares) lives on the Sources tab instead; this screen never touches a
+ * folder directly, only what's been tagged into a bucket.
+ */
 class LibraryActivity : AppCompatActivity() {
 
-    companion object {
-        private const val KEY_HAS_SEEN_WELCOME = "has_seen_welcome"
-        private const val POSTER_GRID_SPAN_COUNT = 3
-    }
-
     private lateinit var binding: ActivityLibraryBinding
+    private lateinit var bucketRepository: BucketRepository
+    private lateinit var taggedFolderRepository: TaggedFolderRepository
     private lateinit var libraryRepository: LibraryRepository
-    private lateinit var settingsRepository: SettingsRepository
     private lateinit var progressRepository: PlaybackProgressRepository
-    private lateinit var collectionRepository: CollectionRepository
-    private lateinit var networkShareRepository: NetworkShareRepository
-    private lateinit var adapter: LibraryListAdapter
-    private val smbExecutor = Executors.newSingleThreadExecutor()
+    private lateinit var adapter: BucketTileAdapter
+    private lateinit var continueWatchingAdapter: ContinueWatchingAdapter
+    private val ioExecutor = Executors.newSingleThreadExecutor()
     private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
-
-    /** Empty = showing the top-level list of added root folders. */
-    private val folderStack = mutableListOf<DocumentFile>()
-
-    /** Non-null = showing a collection's videos instead of a real folder's contents.
-     *  Mutually exclusive with [folderStack] -- collections only open from the root. */
-    private var openCollectionId: String? = null
-    private var openCollectionName: String = ""
-
-    /** Non-null = browsing inside a connected SMB share. [openSmbPath] is the relative
-     *  path within that share ("" = the share's own root); popping a segment off it (or
-     *  clearing [openSmbShareId] once it's already empty) is "back", same shape as
-     *  [folderStack] but as a single path string since SMB has no DocumentFile chain
-     *  to walk. */
-    private var openSmbShareId: String? = null
-    private var openSmbPath: String = ""
-    private var openSmbShareName: String = ""
-
-    /** URIs currently shown in the Continue Watching rail, so the "⋮" menu knows whether
-     *  to offer "Remove from Continue Watching" or just go straight to settings. */
-    private var continueWatchingUris: Set<String> = emptySet()
-
-    private enum class SortMode { NAME, DATE }
-    private var searchQuery: String = ""
-    private var sortMode: SortMode = SortMode.NAME
-
-    private val addFolder = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
-        if (uri != null) {
-            libraryRepository.addFolder(uri)
-            refreshList()
-        }
-    }
-
-    /** Which collection "Change poster" was tapped for -- GetContent's callback carries
-     *  only the picked image, so the target collection has to be remembered here. */
-    private var pendingPosterCollectionId: String? = null
-    private val pickCollectionPoster = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        val collectionId = pendingPosterCollectionId
-        pendingPosterCollectionId = null
-        if (uri != null && collectionId != null) {
-            collectionRepository.setPosterFromUri(collectionId, uri)
-            refreshList()
-        }
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityLibraryBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        binding.root.applyTopBarInset()
 
+        bucketRepository = BucketRepository(this)
+        taggedFolderRepository = TaggedFolderRepository(this)
         libraryRepository = LibraryRepository(this)
-        settingsRepository = SettingsRepository(this)
         progressRepository = PlaybackProgressRepository(this)
-        collectionRepository = CollectionRepository(this)
-        networkShareRepository = NetworkShareRepository(this)
 
-        adapter = LibraryListAdapter(
-            context = this,
-            onFolderClick = { folder -> folderStack.add(folder.document); refreshList() },
-            onFolderRemoveClick = { folder -> confirmRemoveFolder(folder) },
-            onVideoClick = { video -> launchPlayer(video) },
-            onVideoMenuClick = { video, anchor -> showVideoMenu(video, anchor) },
-            onCollectionClick = { collection ->
-                openCollectionId = collection.id
-                openCollectionName = collection.name
-                refreshList()
+        adapter = BucketTileAdapter(
+            onClick = { bucket ->
+                startActivity(
+                    Intent(this, BucketContentActivity::class.java)
+                        .putExtra(BucketContentActivity.EXTRA_BUCKET_ID, bucket.id)
+                        .putExtra(BucketContentActivity.EXTRA_BUCKET_NAME, bucket.name),
+                )
             },
-            onCollectionRemoveClick = { collection -> confirmRemoveCollection(collection) },
-            onCollectionEditPosterClick = { collection ->
-                pendingPosterCollectionId = collection.id
-                pickCollectionPoster.launch("image/*")
-            },
-            onSmbFolderClick = { folder ->
-                openSmbShareId = folder.shareId
-                openSmbPath = folder.relativePath
-                openSmbShareName = networkShareRepository.get(folder.shareId)?.displayName.orEmpty()
-                refreshList()
-            },
-            onSmbShareRemoveClick = { folder -> confirmRemoveShare(folder.shareId, folder.name) },
-            onSmbVideoClick = { video ->
-                val queue = adapter.currentItems().filterIsInstance<LibraryItem.SmbVideoItem>().map { it.uri }
-                launchPlayerForUri(video.uri, queue, queue.indexOfFirst { it == video.uri })
-            },
-            onSmbVideoMenuClick = { video, anchor -> showSmbVideoMenu(video, anchor) },
+            onMenu = { bucket, anchor -> showBucketMenu(bucket, anchor) },
         )
-        val gridLayoutManager = GridLayoutManager(this, POSTER_GRID_SPAN_COUNT)
-        gridLayoutManager.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
-            override fun getSpanSize(position: Int): Int =
-                adapter.spanSizeFor(position, POSTER_GRID_SPAN_COUNT)
-        }
-        binding.libraryList.layoutManager = gridLayoutManager
-        binding.libraryList.adapter = adapter
-        reorderTouchHelper.attachToRecyclerView(binding.libraryList)
+        binding.bucketList.layoutManager = GridLayoutManager(this, com.retrotube.app.library.GridSpanCalculator.spanCount(this))
+        binding.bucketList.adapter = adapter
 
-        binding.addFolderButton.setOnClickListener { addFolder.launch(null) }
-        binding.networkSharesButton.setOnClickListener {
-            startActivity(Intent(this, NetworkSharesActivity::class.java))
-        }
-        binding.tvModeButton.setOnClickListener {
+        val railBinding = binding.continueWatchingRail
+        continueWatchingAdapter = ContinueWatchingAdapter(this) { video ->
+            val settings = com.retrotube.app.settings.SettingsRepository(this).effectiveSettings(video.document.uri.toString())
             startActivity(
                 Intent(this, PlayerActivity::class.java).apply {
-                    putExtra(PlayerActivity.EXTRA_TV_MODE, true)
+                    data = video.document.uri
+                    putExtra(PlayerActivity.EXTRA_SETTINGS, settings.serialize())
                 },
             )
         }
-        binding.tvModeButton.setOnLongClickListener {
-            startActivity(Intent(this, TvChannelEditorActivity::class.java))
-            true
-        }
+        railBinding.continueWatchingList.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
+        railBinding.continueWatchingList.adapter = continueWatchingAdapter
+
         binding.settingsButton.setOnClickListener {
             startActivity(
                 Intent(this, EffectSettingsActivity::class.java).apply {
@@ -162,456 +98,219 @@ class LibraryActivity : AppCompatActivity() {
                 },
             )
         }
-        binding.backButton.setOnClickListener { navigateBack() }
-        binding.editCollectionContentsButton.setOnClickListener {
-            val id = openCollectionId ?: return@setOnClickListener
-            startActivity(
-                Intent(this, CollectionEditActivity::class.java).apply {
-                    putExtra(CollectionEditActivity.EXTRA_COLLECTION_ID, id)
-                },
-            )
-        }
+        binding.refreshLibraryButton.setOnClickListener { refreshAllBuckets() }
+        binding.newBucketButton.setOnClickListener { promptNewBucket() }
 
-        binding.searchToggleButton.setOnClickListener { toggleSearch() }
-
-        binding.searchField.addTextChangedListener(object : TextWatcher {
-            override fun afterTextChanged(s: Editable?) {
-                searchQuery = s?.toString().orEmpty()
-                refreshList()
-            }
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
-        })
-        binding.sortButton.setOnClickListener {
-            sortMode = if (sortMode == SortMode.NAME) SortMode.DATE else SortMode.NAME
-            binding.sortButton.setText(if (sortMode == SortMode.NAME) R.string.sort_name else R.string.sort_date)
-            refreshList()
-        }
-
-        maybeShowWelcomeDialog()
-
-        onBackPressedDispatcher.addCallback(
-            this,
-            object : OnBackPressedCallback(true) {
-                override fun handleOnBackPressed() {
-                    if (openCollectionId != null || openSmbShareId != null || folderStack.isNotEmpty()) {
-                        navigateBack()
-                    } else {
-                        isEnabled = false
-                        onBackPressedDispatcher.onBackPressed()
-                    }
-                }
-            },
-        )
+        MainTabBar.setup(this, binding.root, MainTabBar.Tab.LIBRARY)
     }
 
     override fun onResume() {
         super.onResume()
-        refreshList()
+        refresh()
     }
 
-    /** Shown once, first launch only -- a real tooltip-pointer overlay system would be a
-     *  much bigger lift for the same "tell a first-time user what to do" value. */
-    private fun maybeShowWelcomeDialog() {
-        val prefs = getSharedPreferences("retrotube_onboarding", MODE_PRIVATE)
-        if (prefs.getBoolean(KEY_HAS_SEEN_WELCOME, false)) return
+    private fun refresh() {
+        val buckets = bucketRepository.getAll()
+        binding.emptyStateText.visibility = if (buckets.isEmpty()) View.VISIBLE else View.GONE
+        adapter.submitList(buckets)
 
-        AlertDialog.Builder(this)
-            .setTitle(R.string.welcome_title)
-            .setMessage(R.string.welcome_message)
-            .setPositiveButton(R.string.welcome_got_it) { _, _ ->
-                prefs.edit().putBoolean(KEY_HAS_SEEN_WELCOME, true).apply()
-            }
-            .setCancelable(false)
-            .show()
+        val continueWatching = libraryRepository.resolveVideoItems(progressRepository.getAllProgress().map { it.first })
+        binding.continueWatchingContainer.visibility = if (continueWatching.isEmpty()) View.GONE else View.VISIBLE
+        continueWatchingAdapter.submitList(continueWatching)
     }
 
-    /** Search is hidden until asked for -- opening it focuses the field and raises the
-     *  keyboard; closing it clears the query so the grid returns to its full contents
-     *  rather than leaving an invisible filter applied. */
-    private fun toggleSearch() {
-        val opening = binding.searchRow.visibility != View.VISIBLE
-        if (opening) {
-            binding.searchRow.visibility = View.VISIBLE
-            binding.searchField.requestFocus()
-            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-            imm.showSoftInput(binding.searchField, InputMethodManager.SHOW_IMPLICIT)
-        } else {
-            binding.searchField.text?.clear()
-            binding.searchField.clearFocus()
-            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-            imm.hideSoftInputFromWindow(binding.searchField.windowToken, 0)
-            binding.searchRow.visibility = View.GONE
-        }
-    }
-
-    private fun navigateBack() {
-        if (openCollectionId != null) {
-            openCollectionId = null
-            openCollectionName = ""
-            refreshList()
-        } else if (openSmbShareId != null) {
-            if (openSmbPath.isEmpty()) {
-                openSmbShareId = null
-                openSmbShareName = ""
-            } else {
-                openSmbPath = openSmbPath.substringBeforeLast('/', "")
-            }
-            refreshList()
-        } else if (folderStack.isNotEmpty()) {
-            folderStack.removeAt(folderStack.size - 1)
-            refreshList()
-        }
-    }
-
-    /** Continue Watching only shows at the library root -- once you've navigated into a
-     *  folder (or a collection) it drops away rather than following you around, since
-     *  it isn't scoped to what you're currently browsing. It travels as the grid's first
-     *  row rather than a pinned section, so it scrolls away with everything else. */
-    private fun refreshList() {
-        val smbShareId = openSmbShareId
-        if (smbShareId != null) {
-            continueWatchingUris = emptySet()
-            binding.breadcrumbRow.visibility = View.VISIBLE
-            binding.breadcrumbText.text = if (openSmbPath.isEmpty()) {
-                openSmbShareName
-            } else {
-                "$openSmbShareName/$openSmbPath"
-            }
-            binding.sortButton.visibility = View.GONE
-            binding.editCollectionContentsButton.visibility = View.GONE
-            loadSmbFolderAsync(smbShareId, openSmbPath)
-            return
-        }
-
-        val collectionId = openCollectionId
-        val items: List<LibraryItem> = when {
-            collectionId != null -> {
-                continueWatchingUris = emptySet()
-                val collection = collectionRepository.get(collectionId)
-                if (collection == null) {
-                    openCollectionId = null
-                    emptyList()
-                } else {
-                    val query = searchQuery.trim()
-                    val videos = libraryRepository.resolveVideoItems(collection.videoUris)
-                    if (query.isEmpty()) videos else videos.filter { it.name.contains(query, ignoreCase = true) }
-                }
-            }
-            folderStack.isEmpty() -> {
-                val continueWatching = libraryRepository.resolveVideoItems(
-                    progressRepository.getAllProgress().map { it.first },
-                )
-                continueWatchingUris = continueWatching.map { it.document.uri.toString() }.toSet()
-                val rail = if (continueWatching.isEmpty()) {
-                    emptyList()
-                } else {
-                    listOf(LibraryItem.ContinueWatchingRail(continueWatching))
-                }
-
-                val collections: List<LibraryItem> = collectionRepository.getAll()
-                    .sortedBy { it.name.lowercase() }
-                    .map { LibraryItem.CollectionItem(it.id, it.name, it.videoUris.size) }
-                val filteredCollections = filterAndSort(collections)
-                val collectionsSection: List<LibraryItem> = if (filteredCollections.isEmpty()) {
-                    emptyList()
-                } else {
-                    listOf(LibraryItem.SectionHeader(getString(R.string.collections_section_title))) + filteredCollections
-                }
-
-                val shares: List<LibraryItem> = networkShareRepository.getAll()
-                    .sortedBy { it.displayName.lowercase() }
-                    .map { LibraryItem.SmbFolderItem(it.id, "", it.displayName) }
-                val filteredShares = filterAndSort(shares)
-                val networkSection: List<LibraryItem> = if (filteredShares.isEmpty()) {
-                    emptyList()
-                } else {
-                    listOf(LibraryItem.SectionHeader(getString(R.string.network_section_title))) + filteredShares
-                }
-
-                val filteredFolders = filterAndSort(libraryRepository.getRootDocuments())
-                val librarySection: List<LibraryItem> = if (filteredFolders.isEmpty()) {
-                    emptyList()
-                } else {
-                    listOf(LibraryItem.SectionHeader(getString(R.string.library_section_title))) + filteredFolders
-                }
-
-                rail + collectionsSection + networkSection + librarySection
-            }
-            else -> {
-                continueWatchingUris = emptySet()
-                filterAndSort(libraryRepository.listChildren(folderStack.last()))
-            }
-        }
-        adapter.submitList(items, isRootLevel = folderStack.isEmpty() && collectionId == null)
-        binding.emptyLibraryText.visibility = if (items.isEmpty()) View.VISIBLE else View.GONE
-
-        val browsingSomewhere = collectionId != null || folderStack.isNotEmpty()
-        binding.breadcrumbRow.visibility = if (browsingSomewhere) View.VISIBLE else View.GONE
-        binding.breadcrumbText.text = when {
-            collectionId != null -> openCollectionName
-            else -> folderStack.joinToString(" / ") { it.name ?: "?" }
-        }
-        // Order inside a collection is manual (drag to reorder), so the name/date
-        // sort toggle doesn't apply there.
-        binding.sortButton.visibility = if (collectionId != null) View.GONE else View.VISIBLE
-        binding.editCollectionContentsButton.visibility = if (collectionId != null) View.VISIBLE else View.GONE
-    }
-
-    private fun filterAndSort(items: List<LibraryItem>): List<LibraryItem> {
-        val query = searchQuery.trim()
-        val filtered = if (query.isEmpty()) {
-            items
-        } else {
-            items.filter { item ->
-                val name = when (item) {
-                    is LibraryItem.FolderItem -> item.name
-                    is LibraryItem.VideoItem -> item.name
-                    is LibraryItem.CollectionItem -> item.name
-                    is LibraryItem.SmbFolderItem -> item.name
-                    is LibraryItem.SmbVideoItem -> item.name
-                    is LibraryItem.ContinueWatchingRail -> ""
-                    is LibraryItem.SectionHeader -> ""
-                }
-                name.contains(query, ignoreCase = true)
-            }
-        }
-        if (sortMode == SortMode.NAME) return filtered
-
-        return filtered.sortedByDescending { item ->
-            when (item) {
-                is LibraryItem.FolderItem -> item.document.lastModified()
-                is LibraryItem.VideoItem -> item.document.lastModified()
-                is LibraryItem.CollectionItem -> Long.MAX_VALUE
-                // SMB has no cheap last-modified lookup without a per-item network round
-                // trip, and date-sort is a minor convenience -- name order is fine here.
-                is LibraryItem.SmbFolderItem -> 0L
-                is LibraryItem.SmbVideoItem -> 0L
-                is LibraryItem.ContinueWatchingRail -> Long.MAX_VALUE
-                is LibraryItem.SectionHeader -> Long.MAX_VALUE
-            }
-        }
-    }
-
-    /** Active only while a collection is open -- drag to reorder its videos, since that
-     *  order is the whole point of a manually-curated shelf. */
-    private val reorderTouchHelper = ItemTouchHelper(
-        object : ItemTouchHelper.SimpleCallback(
-            ItemTouchHelper.UP or ItemTouchHelper.DOWN or ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT,
-            0,
-        ) {
-            override fun isLongPressDragEnabled() = openCollectionId != null
-
-            override fun onMove(
-                recyclerView: RecyclerView,
-                viewHolder: RecyclerView.ViewHolder,
-                target: RecyclerView.ViewHolder,
-            ): Boolean {
-                if (openCollectionId == null) return false
-                adapter.moveItem(viewHolder.bindingAdapterPosition, target.bindingAdapterPosition)
-                return true
-            }
-
-            override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) = Unit
-
-            override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
-                super.clearView(recyclerView, viewHolder)
-                val collectionId = openCollectionId ?: return
-                val uris = adapter.currentItems()
-                    .filterIsInstance<LibraryItem.VideoItem>()
-                    .map { it.document.uri.toString() }
-                collectionRepository.setVideoOrder(collectionId, uris)
-            }
-        },
-    )
-
-    /** SMB directory listings are real network round trips, unlike SAF's local IPC --
-     *  this runs off the main thread, and drops a stale result if the user has already
-     *  navigated elsewhere by the time it comes back. */
-    private fun loadSmbFolderAsync(shareId: String, path: String) {
-        val share = networkShareRepository.get(shareId)
-        if (share == null) {
-            openSmbShareId = null
-            openSmbPath = ""
-            openSmbShareName = ""
-            refreshList()
-            return
-        }
-        smbExecutor.execute {
-            val result = runCatching { SmbBrowser.listChildren(share, path) }
-            mainHandler.post {
-                if (openSmbShareId != shareId || openSmbPath != path) return@post
-                val items = filterAndSort(result.getOrElse { emptyList() })
-                adapter.submitList(items, isRootLevel = false)
-                binding.emptyLibraryText.visibility = if (items.isEmpty()) View.VISIBLE else View.GONE
-                result.exceptionOrNull()?.let { error ->
-                    Toast.makeText(
-                        this,
-                        getString(R.string.connection_failed, error.message ?: error.toString()),
-                        Toast.LENGTH_LONG,
-                    ).show()
-                }
-            }
-        }
-    }
-
-    private fun launchPlayer(video: LibraryItem.VideoItem) {
-        // Whatever's currently on screen (a folder, search results, the Continue
-        // Watching rail, an open collection) becomes the shoulder-button previous/
-        // next queue -- see PlayerActivity.playAdjacentInQueue.
-        val queue = adapter.currentItems().filterIsInstance<LibraryItem.VideoItem>().map { it.document.uri }
-        launchPlayerForUri(video.document.uri, queue, queue.indexOfFirst { it == video.document.uri })
-    }
-
-    private fun launchPlayerForUri(uri: Uri, queue: List<Uri> = emptyList(), queueIndex: Int = -1) {
-        val settings = settingsRepository.effectiveSettings(uri.toString())
-        val intent = Intent(this, PlayerActivity::class.java).apply {
-            data = uri
-            putExtra(PlayerActivity.EXTRA_SETTINGS, settings.serialize())
-            if (queue.size > 1 && queueIndex >= 0) {
-                putStringArrayListExtra(PlayerActivity.EXTRA_QUEUE_URIS, ArrayList(queue.map { it.toString() }))
-                putExtra(PlayerActivity.EXTRA_QUEUE_INDEX, queueIndex)
-            }
-        }
-        startActivity(intent)
-    }
-
-    private fun confirmRemoveShare(shareId: String, shareName: String) {
-        AlertDialog.Builder(this)
-            .setTitle(getString(R.string.remove_share_title, shareName))
-            .setMessage(R.string.remove_share_message)
-            .setPositiveButton(R.string.remove) { _, _ ->
-                networkShareRepository.delete(shareId)
-                refreshList()
-            }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
-    }
-
-    private fun showSmbVideoMenu(video: LibraryItem.SmbVideoItem, anchor: View) {
-        // Collections and Continue Watching resolve their videos back from a saved URI
-        // via SAF -- until that path also understands smb:// URIs, those two stay
-        // unavailable for an SMB video, but title/poster editing works fine (custom
-        // metadata is scheme-agnostic; it's only frame-scrubbing that's SAF-only).
-        val uriString = video.uri.toString()
+    private fun showBucketMenu(bucket: Bucket, anchor: View) {
         PopupMenu(this, anchor).apply {
-            menu.add(getString(R.string.effect_settings_for_video))
-            menu.add(getString(R.string.edit_title_and_poster))
+            menu.add(getString(R.string.manage_sources))
+            if (bucket.isDeletable) menu.add(getString(R.string.remove))
             setOnMenuItemClickListener { menuItem ->
                 when (menuItem.title) {
-                    getString(R.string.edit_title_and_poster) -> openMetadataEditor(uriString)
-                    else -> startActivity(
-                        Intent(this@LibraryActivity, EffectSettingsActivity::class.java).apply {
-                            putExtra(EffectSettingsActivity.EXTRA_MODE, EffectSettingsActivity.MODE_OVERRIDE)
-                            putExtra(EffectSettingsActivity.EXTRA_VIDEO_URI, uriString)
-                        },
-                    )
-                }
-                true
-            }
-        }.show()
-    }
-
-    private fun confirmRemoveFolder(folder: LibraryItem.FolderItem) {
-        AlertDialog.Builder(this)
-            .setTitle(getString(R.string.remove_folder_title, folder.name))
-            .setMessage(R.string.remove_folder_message)
-            .setPositiveButton(R.string.remove) { _, _ ->
-                libraryRepository.removeRoot(folder.document.uri)
-                refreshList()
-            }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
-    }
-
-    private fun confirmRemoveCollection(collection: LibraryItem.CollectionItem) {
-        AlertDialog.Builder(this)
-            .setTitle(getString(R.string.remove_collection_title, collection.name))
-            .setMessage(R.string.remove_collection_message)
-            .setPositiveButton(R.string.remove) { _, _ ->
-                collectionRepository.delete(collection.id)
-                refreshList()
-            }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
-    }
-
-    private fun showVideoMenu(video: LibraryItem.VideoItem, anchor: View) {
-        val uriString = video.document.uri.toString()
-
-        PopupMenu(this, anchor).apply {
-            menu.add(getString(R.string.effect_settings_for_video))
-            menu.add(getString(R.string.edit_title_and_poster))
-            menu.add(getString(R.string.add_to_collection))
-            if (uriString in continueWatchingUris) {
-                menu.add(getString(R.string.remove_from_continue_watching))
-            }
-            setOnMenuItemClickListener { menuItem ->
-                when (menuItem.title) {
-                    getString(R.string.edit_title_and_poster) -> openMetadataEditor(video)
-                    getString(R.string.add_to_collection) -> showAddToCollectionDialog(video)
-                    getString(R.string.remove_from_continue_watching) -> {
-                        progressRepository.hideFromContinueWatching(uriString)
-                        refreshList()
+                    getString(R.string.manage_sources) -> showManageSourcesDialog(bucket)
+                    getString(R.string.remove) -> {
+                        bucketRepository.delete(bucket.id)
+                        refresh()
                     }
-                    else -> openOverrideSettings(video)
                 }
                 true
             }
         }.show()
     }
 
-    private fun showAddToCollectionDialog(video: LibraryItem.VideoItem) {
-        val existing = collectionRepository.getAll()
-        val labels = (existing.map { it.name } + getString(R.string.new_collection)).toTypedArray()
+    /** Lists every folder currently tagged into [bucket] (local or SMB alike),
+     *  each removable on the spot -- untagging is instant and non-destructive
+     *  (see [TaggedFolderRepository.untag]), never touching the folder's own
+     *  files or its cached scrape results. */
+    private fun showManageSourcesDialog(bucket: Bucket) {
+        val dialogBinding = DialogManageSourcesBinding.inflate(layoutInflater)
+        // A bottom sheet, not a full AlertDialog -- reads as a proper iOS-style
+        // modal (rounded top corners, drag handle, slides up from the edge it
+        // belongs to) instead of a floating box with its own chrome to fight.
+        val dialog = com.google.android.material.bottomsheet.BottomSheetDialog(this)
+        dialog.setContentView(dialogBinding.root)
 
-        AlertDialog.Builder(this)
-            .setTitle(R.string.add_to_collection)
-            .setItems(labels) { _, index ->
-                if (index < existing.size) {
-                    collectionRepository.addVideo(existing[index].id, video.document.uri.toString())
-                    refreshList()
-                } else {
-                    promptNewCollection(video)
-                }
+        lateinit var rowAdapter: ManageSourcesRowAdapter
+        fun reloadRows() {
+            val tagged = taggedFolderRepository.getForBucket(bucket.id)
+            dialogBinding.emptyStateText.visibility = if (tagged.isEmpty()) View.VISIBLE else View.GONE
+            rowAdapter.submitList(tagged.map { it to friendlyLabelFor(it.folderKey) })
+        }
+        rowAdapter = ManageSourcesRowAdapter { folder ->
+            taggedFolderRepository.untag(folder.folderKey)
+            reloadRows()
+            refresh()
+        }
+        dialogBinding.sourceRowList.layoutManager = LinearLayoutManager(this)
+        dialogBinding.sourceRowList.adapter = rowAdapter
+        reloadRows()
+
+        dialogBinding.doneButton.setOnClickListener { dialog.dismiss() }
+        dialog.setOnShowListener {
+            val sheet = dialog.findViewById<android.widget.FrameLayout>(
+                com.google.android.material.R.id.design_bottom_sheet,
+            )
+            sheet?.let {
+                it.setBackgroundResource(android.R.color.transparent)
+                com.google.android.material.bottomsheet.BottomSheetBehavior.from(it).state =
+                    com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_EXPANDED
             }
-            .show()
+        }
+        dialog.show()
     }
 
-    private fun promptNewCollection(video: LibraryItem.VideoItem) {
+    /** A folder key is a full content:// or smb:// URI -- not something to show
+     *  a user directly. Local folders show their own name; SMB folders show
+     *  "share name/relative path", matching how a share's own folders read
+     *  when browsing them on the Sources tab. */
+    private fun friendlyLabelFor(folderKey: String): String {
+        val uri = Uri.parse(folderKey)
+        val smb = SmbUri.parse(uri)
+        if (smb != null) {
+            val (shareId, relativePath) = smb
+            val shareName = NetworkShareRepository(this).get(shareId)?.displayName ?: shareId
+            return if (relativePath.isEmpty()) shareName else "$shareName/$relativePath"
+        }
+        return runCatching { androidx.documentfile.provider.DocumentFile.fromTreeUri(this, uri)?.name }
+            .getOrNull() ?: folderKey
+    }
+
+    private fun promptNewBucket() {
         val input = EditText(this)
         AlertDialog.Builder(this)
-            .setTitle(R.string.new_collection_prompt_title)
+            .setTitle(R.string.bucket_new_prompt_title)
             .setView(input)
             .setPositiveButton(R.string.create) { _, _ ->
                 val name = input.text?.toString()?.trim().orEmpty()
                 if (name.isNotEmpty()) {
-                    collectionRepository.create(name, video.document.uri.toString())
-                    refreshList()
+                    bucketRepository.create(name)
+                    refresh()
                 }
             }
-            .setNegativeButton(android.R.string.cancel, null)
+            .setNegativeButton(R.string.cancel, null)
             .show()
     }
 
-    private fun openOverrideSettings(video: LibraryItem.VideoItem) {
-        startActivity(
-            Intent(this, EffectSettingsActivity::class.java).apply {
-                putExtra(EffectSettingsActivity.EXTRA_MODE, EffectSettingsActivity.MODE_OVERRIDE)
-                putExtra(EffectSettingsActivity.EXTRA_VIDEO_URI, video.document.uri.toString())
-            },
-        )
+    /** Force-reload: re-matches every tagged folder across every bucket, fill-blanks-only
+     *  unless already matched (see MatchingEngine/FillBlanksPolicy) -- the library-wide
+     *  Refresh Library action (spec §5.6), not scoped to just one bucket. */
+    private fun refreshAllBuckets() {
+        val tagged = bucketRepository.getAll().flatMap { taggedFolderRepository.getForBucket(it.id) }
+        if (tagged.isEmpty()) return
+        val overlay = ScrapingProgressOverlay(this)
+        overlay.show(getString(R.string.refresh_started))
+        val engine = MatchingEngine(VideoMetadataRepository(this), FolderMetadataRepository(this))
+        ioExecutor.execute {
+            tagged.forEach { FolderVideoScanner.invalidate(it.folderKey) }
+            data class WorkUnit(val kind: ContentKind, val folderKey: String, val label: String)
+            val units = tagged.flatMap { folder ->
+                when (folder.contentKind) {
+                    ContentKind.SHOW -> listOf(WorkUnit(ContentKind.SHOW, folder.folderKey, folder.folderKey))
+                    ContentKind.MOVIE -> FolderVideoScanner.listVideosRecursively(this, folder.folderKey)
+                        .map { WorkUnit(ContentKind.MOVIE, it.uri.toString(), it.name) }
+                }
+            }
+            units.forEachIndexed { index, unit ->
+                overlay.update(getString(R.string.scraping_progress_format, index + 1, units.size))
+                when (unit.kind) {
+                    ContentKind.SHOW -> {
+                        val refs = FolderVideoScanner.listVideosRecursively(this, unit.folderKey)
+                            .map { VideoRef(it.uri.toString(), it.name) }
+                        engine.matchShowFolder(unit.folderKey, refs, forced = false)
+                    }
+                    ContentKind.MOVIE -> engine.matchMovie(VideoRef(unit.folderKey, unit.label), forced = false)
+                }
+            }
+            mainHandler.post {
+                overlay.finish(getString(R.string.refresh_done))
+                refresh()
+            }
+        }
+    }
+}
+
+/** Buckets render as a poster-grid, same card language as everywhere else in
+ *  the app (Bucket content, Show detail, Season episodes) -- a plain name+count
+ *  row read as "very wrong" next to the iOS app's actual grid of shelf cards. A
+ *  bucket has no poster of its own yet, so each card shows a type-appropriate
+ *  placeholder icon (TV / Movies get their own; a custom bucket gets a generic
+ *  one) centered on the card art. */
+class BucketTileAdapter(
+    private val onClick: (Bucket) -> Unit,
+    private val onMenu: (Bucket, View) -> Unit,
+) : RecyclerView.Adapter<BucketTileAdapter.ViewHolder>() {
+
+    private var buckets: List<Bucket> = emptyList()
+
+    fun submitList(newBuckets: List<Bucket>) {
+        buckets = newBuckets
+        notifyDataSetChanged()
     }
 
-    private fun openMetadataEditor(video: LibraryItem.VideoItem) {
-        openMetadataEditor(video.document.uri.toString())
-    }
+    override fun onCreateViewHolder(parent: android.view.ViewGroup, viewType: Int): ViewHolder =
+        ViewHolder(ItemBucketTileBinding.inflate(android.view.LayoutInflater.from(parent.context), parent, false))
 
-    private fun openMetadataEditor(uriString: String) {
-        startActivity(
-            Intent(this, VideoMetadataActivity::class.java).apply {
-                putExtra(VideoMetadataActivity.EXTRA_VIDEO_URI, uriString)
+    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+        val bucket = buckets[position]
+        holder.binding.bucketName.text = bucket.name
+        holder.binding.bucketPlaceholderIcon.setImageResource(
+            when (bucket.id) {
+                BucketRepository.BUCKET_TV -> R.drawable.ic_tv
+                BucketRepository.BUCKET_MOVIES -> R.drawable.ic_movie
+                else -> R.drawable.ic_video_library
             },
         )
+        holder.binding.root.setOnClickListener { onClick(bucket) }
+        holder.binding.bucketMenuButton.setOnClickListener { onMenu(bucket, it) }
     }
+
+    override fun getItemCount(): Int = buckets.size
+
+    class ViewHolder(val binding: ItemBucketTileBinding) : RecyclerView.ViewHolder(binding.root)
+}
+
+/** One row per source tagged into a bucket, in the "Manage Sources" dialog --
+ *  a friendly label plus a red remove-circle, same interaction as an iOS
+ *  edit-mode delete row. */
+class ManageSourcesRowAdapter(
+    private val onRemove: (TaggedFolder) -> Unit,
+) : RecyclerView.Adapter<ManageSourcesRowAdapter.ViewHolder>() {
+
+    private var rows: List<Pair<TaggedFolder, String>> = emptyList()
+
+    fun submitList(newRows: List<Pair<TaggedFolder, String>>) {
+        rows = newRows
+        notifyDataSetChanged()
+    }
+
+    override fun onCreateViewHolder(parent: android.view.ViewGroup, viewType: Int): ViewHolder =
+        ViewHolder(ItemManageSourceRowBinding.inflate(android.view.LayoutInflater.from(parent.context), parent, false))
+
+    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+        val (folder, label) = rows[position]
+        holder.binding.rowLabel.text = label
+        holder.binding.rowRemoveButton.setOnClickListener { onRemove(folder) }
+    }
+
+    override fun getItemCount(): Int = rows.size
+
+    class ViewHolder(val binding: ItemManageSourceRowBinding) : RecyclerView.ViewHolder(binding.root)
 }

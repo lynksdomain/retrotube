@@ -10,7 +10,9 @@
     android:focusable="true"
     app:cardBackgroundColor="@color/retro_surface"
     app:cardCornerRadius="10dp"
-    app:cardElevation="3dp"
+    app:cardElevation="0dp"
+    app:strokeWidth="1dp"
+    app:strokeColor="@color/card_stroke"
     app:rippleColor="@color/retro_teal">
 
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -22,35 +24,46 @@
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:background="@drawable/folder_poster_background"
-            app:layout_constraintDimensionRatio="2:3"
+            app:layout_constraintDimensionRatio="5:6"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="📁"
-            android:textSize="34sp"
-            android:alpha="0.55"
+        <ImageView
+            android:id="@+id/folderPoster"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:scaleType="centerCrop"
+            android:visibility="gone"
             app:layout_constraintTop_toTopOf="@id/folderArt"
             app:layout_constraintBottom_toBottomOf="@id/folderArt"
             app:layout_constraintStart_toStartOf="@id/folderArt"
             app:layout_constraintEnd_toEndOf="@id/folderArt" />
 
-        <TextView
-            android:id="@+id/removeFolderButton"
+        <ImageView
+            android:id="@+id/folderPlaceholderIcon"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:alpha="0.55"
+            android:src="@drawable/ic_folder"
+            android:scaleType="centerInside"
+            app:tint="@color/retro_text_muted"
+            app:layout_constraintTop_toTopOf="@id/folderArt"
+            app:layout_constraintBottom_toBottomOf="@id/folderArt"
+            app:layout_constraintStart_toStartOf="@id/folderArt"
+            app:layout_constraintEnd_toEndOf="@id/folderArt" />
+
+        <ImageView
+            android:id="@+id/folderMenuButton"
             android:layout_width="28dp"
             android:layout_height="28dp"
             android:layout_margin="6dp"
-            android:text="✕"
-            android:textColor="@android:color/white"
-            android:textSize="14sp"
-            android:gravity="center"
             android:background="@drawable/poster_icon_background"
-            android:visibility="gone"
             app:layout_constraintTop_toTopOf="@id/folderArt"
-            app:layout_constraintStart_toStartOf="@id/folderArt" />
+            app:layout_constraintEnd_toEndOf="@id/folderArt"
+        android:src="@drawable/ic_more_vert"
+        android:scaleType="centerInside"
+        app:tint="@android:color/white" />
 
         <TextView
             android:id="@+id/folderName"
@@ -65,6 +78,7 @@
             android:lineSpacingExtra="2dp"
             android:textStyle="bold"
             android:maxLines="2"
+            android:minLines="2"
             android:ellipsize="end"
             app:layout_constraintTop_toBottomOf="@id/folderArt"
             app:layout_constraintStart_toStartOf="parent"

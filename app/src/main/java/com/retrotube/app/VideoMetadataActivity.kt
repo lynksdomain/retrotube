@@ -19,6 +19,7 @@ import com.retrotube.app.metadata.VideoMetadataRepository
 import com.retrotube.app.network.NetworkShareRepository
 import com.retrotube.app.network.SmbUri
 import java.util.concurrent.Executors
+import com.retrotube.app.util.applyTopBarInset
 
 /**
  * Lets a video's display title and poster art be overridden by hand -- a
@@ -71,6 +72,7 @@ class VideoMetadataActivity : AppCompatActivity() {
 
         binding = ActivityVideoMetadataBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        binding.root.applyTopBarInset()
 
         metadataRepository = VideoMetadataRepository(this)
 

@@ -21,6 +21,13 @@
     <color name="tier_medium">#FFB347</color>
     <color name="tier_high">@color/retro_magenta</color>
 
+    <color name="segment_selected">#4A4A58</color>
+
     <color name="thumbnail_placeholder">#222230</color>
     <color name="progress_track">#66000000</color>
+
+    <!-- Card separation is a hairline stroke, never a drop shadow: dark scraped
+         artwork (posters, stills) can otherwise blend invisibly into the
+         near-black background with elevation alone. white @ 12% opacity. -->
+    <color name="card_stroke">#1FFFFFFF</color>
 </resources>
